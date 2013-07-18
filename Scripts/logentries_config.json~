@@ -1,0 +1,12 @@
+{
+"account_key":"b08680a7-5d20-4459-95bb-80ca2069b4a1",
+"instances":
+	[
+		{
+		"name": "testserver",
+		"ip":"54.216.122.115",
+		"user":"root",
+		"ssh_key":"/home/benoit/.ssh/data_host.pem"
+		}
+	]
+}
