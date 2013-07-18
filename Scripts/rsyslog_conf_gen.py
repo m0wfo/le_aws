@@ -5,7 +5,6 @@ import json
 import ssh_keys
 import logentries
 
-POLLING_PERIOD = 10
 CONF_FILE = 'logentries_config.json'
 ACCOUNT_KEY,CONFIG = logentries.load_config(CONF_FILE)
 
@@ -33,17 +32,23 @@ class Account:
          self._hosts.append(host)
 
    @staticmethod
-   def load_json(json_rep_str):
-      account_data = json.loads(json_rep_str)
+   def load_json(account_data):
+      """ """
       account = Account(account_data["key"])
-      for 
+      for host_data in account_data["hosts"]:
+         account.add_host(Host.load_json(host_data))
       return account
 
    def to_json(self):
-      return unicode(self)
+      result = {"key":self.get_key()}
+      hosts_json = []
+      for host in self.get_hosts():
+         hosts_json.append(host.to_json())
+      result["hosts"] = hosts_json
+      return result
 
    def __unicode__(self):
-      return '{"name":"%s","path":"%s","key":"%s","token":"%s"}'%(self._name,self._path,self._key,self._token)
+      return json.dumps(self.to_json())
    
 
 class Log:
@@ -64,8 +69,7 @@ class Log:
       self._source = source
    
    @staticmethod
-   def load_json(json_rep_str):
-      log_data = json.loads(json_rep_str)
+   def load_json(log_data):
       log = Log()
       log.set_name(log_data["name"])
       log.set_path(log_data["path"])
@@ -75,8 +79,8 @@ class Log:
       log.set_port(log_data["port"])
       return log
 
-   def convert():
-      pass
+   def to_json(self):
+      return {"name":self.get_name(),"path":self.get_path(),"key":self.get_key(),"token":self.get_token()}
 
    def set_value(attr,value):
       attr = value
@@ -113,12 +117,18 @@ class Log:
 
    def get_token(self):
       return self._token
+
+   def get_source(self):
+      return self._source
+
+   def get_port(self):
+      return self._port
    
    def to_json(self):
-      return unicode(self)
+      return {"key":self.get_key(),"name":self.get_name(),"path":self.get_path(),"token":self.get_token(),"source":self.get_source(),"port":self.get_port()}
 
    def __unicode__(self):
-      return '{"name":"%s","path":"%s","key":"%s","token":"%s"}'%(self._name,self._path,self._key,self._token)
+      return json.dumps(self.to_json())
 
 
 class Host:
@@ -127,9 +137,10 @@ class Host:
    _key = None
    _logs = None
 
-   def __init__(self):
-      self._name = 'Default'
-      self._logs = []
+   def __init__(self,name=None,key=None,logs=[]):
+      self._name = name
+      self._key = key
+      self._logs = logs
 
    def load_json(cls,json_rep_str):
       host_data = json.loads(json_rep_str)
@@ -140,6 +151,9 @@ class Host:
 
    def set_name(self,name):
       self._name = name
+
+   def set_key(self,key):
+      self._key = key
 
    def add_log(self,log):
       """ Args: log is not None """
@@ -155,6 +169,9 @@ class Host:
    def get_name(self):
       return self._name
 
+   def get_key(self):
+      return self._key
+
    def get_log(self,log_key):
       """ """
       for log in self._logs:
@@ -165,20 +182,50 @@ class Host:
    def get_logs(self):
       return self._logs
 
+   @staticmethod
+   def load_json(host_data):
+      """ """
+      host = Host(key=host_data["key"])
+      name = host_data["name"]
+      if name is not None:
+         host.set_name(name)
+      for log_data in host_data["logs"]:
+         host.add_log(Log.load_json(log_data))
+      return host
+
+
    def to_json(self):
-      return unicode(self)
+      logs_json = [log.to_json() for log in self.get_logs()]
+      return {"name":self.get_name(),"key":self.get_key(),"logs":logs_json}
 
    def __unicode__(self):
-      log_list_string = '['
-      for log in self._logs:
-         log_list_string = log_list_string + unicode(log)+','
-      log_list_string = log_list_string + ']'
-      return '{"name":"%s","logs":"%s"}'%(self._name,log_list_string)
+      return json.dumps(self.to_json())
 
 
 class Instance(Host):
+   """ """
    _ssh_key_name = None
    _ip_address = None
+
+   def set_ssh_key_name(self,ssh_key_name):
+      self._ssh_key_name = ssh_key_name
+
+   def set_ip_address(self,ip_address):
+      self._ip_address = ip_address
+
+   def get_ssh_key_name(self):
+      return _ssh_key_name
+
+   def get_ip_address(self):
+      return _ip_address
+
+   def to_json(self):
+      result = {"ssh_key_name":self.get_ssh_key_name(),"ip_address":self.get_ip_address()}
+      return result.update(super().to_json())
+
+   def __unicode__(self):
+      return json.dumps(self.to_json())
+      return ''%(self.get_key(),self.get_name(),log_list_string)
 
 
 class ConfFile:
@@ -288,7 +335,8 @@ if __name__ == '__main__':
    log2.set_token('log1_token')
    log2_rep_str = unicode(log2)
    print 'log2:%s'%log2_rep_str
-   log3 = Log.load_json(log2_rep_str)
+   log2_data = json.loads(log2_rep_str)
+   log3 = Log.load_json(log2_data)
    log3.set_name('log3')
    print 'log3:%s'%unicode(log3)
 
