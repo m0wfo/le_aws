@@ -75,7 +75,8 @@ class Log:
       log.set_port(log_data["port"])
       return log
 
-   def convert()
+   def convert():
+      pass
 
    def set_value(attr,value):
       attr = value
@@ -173,6 +174,11 @@ class Host:
          log_list_string = log_list_string + unicode(log)+','
       log_list_string = log_list_string + ']'
       return '{"name":"%s","logs":"%s"}'%(self._name,log_list_string)
+
+
+class Instance(Host):
+   _ssh_key_name = None
+   _ip_address = None
 
 
 class ConfFile:
