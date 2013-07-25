@@ -1,0 +1,24 @@
+import paramiko
+
+
+ssh = paramiko.SSHClient()
+ssh.load_system_host_keys() # This loads the pre accepted host keys
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())   # this accepts the new host keys for ssh. Should be an option for users!
+
+
+
+def get_log_paths(instance):
+    ssh.connect(instance)
+    stdin, stdout, stderr=ssh.exec_command('find /var/log/ -name *.log')
+    print stdout.read()
+
+from fabric.api import local
+from fabric.decorators import parallel
+
+@parallel
+def host_type():
+    local('uname -ovs')
+
+
+if __name__ == '__main__':
+    host_type()

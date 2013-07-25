@@ -9,11 +9,10 @@ CONF_FILE = 'logentries_config.json'
 ACCOUNT_KEY,CONFIG = logentries.load_config(CONF_FILE)
 
 class Account:
-   _key = None
-   _hosts = None
    
    def __init__(self,account_key):
-      self._key = account_key
+      self._key = account_ke
+      self._hosts = None
 
    def set_key(self,key):
       self.key = key
@@ -53,13 +52,6 @@ class Account:
 
 class Log:
 
-   _name = None
-   _path = None
-   _key = None
-   _token = None
-   _port = None
-   _source = None
-   
    def __init_(self,name=None,path=None,key=None,token=None,source=None):
       self._name = 'Default'
       self._path = path
@@ -133,11 +125,6 @@ class Log:
 
 class Host(object):
    
-   _name = None
-   _key = None
-   _logs = None
-   _platform = None
-
    def __init__(self,name=None,key=None,logs=[],platform=None):
       self._name = name
       self._key = key
@@ -214,10 +201,6 @@ class Host(object):
 
 class Instance(Host):
    """ """
-   _aws_id = None
-   _ssh_key_name = None
-   _ip_address = None
-   _user = None
 
    def __init__(self,aws_id,ssh_key_name=None,ip_address=None,name=None,key=None,logs=[],platform=None, user=None):
       self._aws_id = aws_id
@@ -261,11 +244,6 @@ class Instance(Host):
 
 class LoggingConfFile:
    """ """
-   _name = None
-   _conf_format = None
-   _logs = None
-   _polling_period = 0
-
 
    def __init__(self,name='logentries.conf',conf_format='rsyslog',host=None,polling_period=10):
       self._name = name
@@ -364,9 +342,6 @@ class LoggingConfFile:
 
 
 class ConfFile:
-
-   _name = None
-   _instances = None
 
    def __init__(self,name='logentries_conf.json',instances=[]):
       self._name = name
