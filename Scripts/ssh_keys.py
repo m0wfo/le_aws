@@ -7,6 +7,7 @@ regions = ["eu-west-1","us_west_1"]
 
 cons = []
 
+
 def set_cons():
     """ """
     global cons 
