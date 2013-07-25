@@ -1,4 +1,11 @@
-import LogentriesSDK.helpers as helpers
+def parse_boolean( b_value ):
+	""" Parses string booleans. """
+	if b_value.lower() == 'false':
+		return False
+	elif b_value.lower() == 'true':
+		return True
+	else:
+		return None
 
 class Log:
 	def __init__(self):
@@ -23,7 +30,7 @@ class Log:
 		self._type = str(log_obj['type'])
 		self._retention = log_obj['retention']
 		self._object = str(log_obj['object'])
-		self._follow = helpers.parse_boolean(log_obj['follow'])
+		self._follow = parse_boolean(log_obj['follow'])
 		self._created = log_obj['created']
 		self._port = log_obj['port'] if 'port' in log_obj else None
 		self._token = str(log_obj['token']) if 'token' in log_obj else None
