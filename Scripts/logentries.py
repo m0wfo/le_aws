@@ -1,9 +1,8 @@
 LE_SERVER_API = 'api.logentries.com'
 LE_SERVER_PORT = 443
-CONF_FILE = 'logentries_config.json'
+CONFIG_FILE = 'logentries_config.json'
 ACCOUNT_KEY = ''
 CONF_FILE = 'logentries.conf'
-CONFIG = load_config(CONF_FILE)
 
 
 import urllib, httplib, getpass, sys, socket, subprocess
@@ -30,6 +29,8 @@ def load_config(file):
    except:
       print 'Please enter your account key in '
    return ACCOUNT_KEY,CONFIG
+
+CONFIG = load_config(CONFIG_FILE)
 
 def make_request(req_dict,conf):
    data = {}
