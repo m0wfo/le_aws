@@ -1,5 +1,6 @@
-import constants
+import socket, httplib, urllib
 from LogentriesSDK.exception import InvalidServerResponse, MissingModuleException
+import LogentriesSDK.constants as constants
 
 try:
 	import ssl
@@ -36,7 +37,7 @@ class LogentriesConnection:
 		except AttributeError:
 			data = simplejson.loads( resp.read() )
 
-		http.close()	
+		http.close()
 
 		if data[ 'response'] != constants.RESP_OK:
 			return data, False
@@ -44,4 +45,4 @@ class LogentriesConnection:
 		return data, True
 
 	def request( self, request ):
-		return _make_api_call( request )
+		return self._make_api_call( request )

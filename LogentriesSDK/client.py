@@ -36,32 +36,34 @@ VERSION="0.1"
 #
 # Modules
 #
-import urllib
-import httplib
 import os
 import sys
-import socket
 
 #
 # Le Modules
 #
-from LogentriesSDK.host import Host
 from LogentriesSDK.connection import LogentriesConnection 
 from LogentriesSDK.exception import InvalidParametersException, InvalidLogSourceException
-import LogentriesSDK.constants
-import LogentriesSDK.helpers
-import LogentriesSDK.models
+import LogentriesSDK.constants as constants
+import LogentriesSDK.helpers as helpers
+import LogentriesSDK.models as models
+import inspect
 
-class LogentriesClient(Account):
+class Client(models.Account):
 
 	def __init__(self, account_key=None):
-		Account.__init__(self, account_key)
+		acc_key = helpers.check_user_key(account_key)
+		models.Account.__init__(self, acc_key)
 		self._conn = LogentriesConnection()
 
-	def _create_log( host, log_name, source, filename=None):
-		helpers.check_user_key( self._account_key )
+	def _create_log( self, host, log_name, source, filename=None):
 
-		host_key = helpers.validate_parameter( Host, host, 'key' )
+		if isinstance( host, models.Host ):
+			host_key = host.get_key()
+		elif isinstance( host, str):
+			host_key = host
+		else:
+			raise InvalidParametersException
 
 		if not helpers.is_valid_log_source( source ):
 			raise InvalidLogSourceException
@@ -81,12 +83,12 @@ class LogentriesClient(Account):
 		log_data, success = self._conn.request( request )
 
 		if success:
-			return self._add_log_to_host( host['key'], log_data )
+			return self.add_log_to_host( host_key, log_data )
 		else:
 			return None
 
 	def create_host( self, name, **optionals ):
-	""" Creates a new host on Logentries. 
+		""" Creates a new host on Logentries. 
 		Required Parameters:
 			name     (This is the name of the host)
 		Optional Parameters:
@@ -108,28 +110,26 @@ class LogentriesClient(Account):
 			"agent_key":"12345678-1234-1234-1234-123456789123"
 		}"""
 
-	helpers.check_user_key( self._account_key )
+		location = optionals.get( 'location','' )
 
-	location = optionals.get( 'location','' )
+		request = {
+			'request': constants.API_NEW_HOST,
+			'user_key': self._account_key,
+			'name': name,
+			'hostname': location,
+			'distver': '',
+			'system': '',
+			'distname': ''
+		}
 
-	request = {
-		'request': constants.API_NEW_HOST,
-		'user_key': self._account_key,
-		'name': name,
-		'hostname': location,
-		'distver': '',
-		'system': '',
-		'distname': ''
-	}
+		host_data, success = self._conn.request( request )
 
-	host_data, success = self._conn.request( request )
+		if success:
+			return self.add_host(host_data)
+		else:
+			return None
 
-	if success:
-		return self.add_host(host_data)
-	else:
-		return None
-
-	def update_host( host, **optionals ): 
+	def update_host( self, host, **optionals ): 
 		""" Updates an existing host on Logentries.
 			Required Parameters:
 				host (Host object returned by the create_host method or the host_key UUID for it)
@@ -152,9 +152,7 @@ class LogentriesClient(Account):
 				"user_key":"12345678-1234-1234-1234-123456789123"
 			}"""
 
-		helpers.check_user_key( self._account_key )
-
-		host_key = helpers.validate_parameter( Host, host, 'key' )
+		host_key = helpers.validate_parameter( models.Host, host, 'key' )
 
 		name = optionals.get( 'name', '' )
 		location = optionals.get( 'location', '' )
@@ -165,7 +163,7 @@ class LogentriesClient(Account):
 		request = {
 			'request': constants.API_SET_HOST,
 			'user_key': self._account_key,
-			'host_key': host[ 'key'],
+			'host_key': host_key,
 		}
 
 		if name != '':
@@ -176,7 +174,7 @@ class LogentriesClient(Account):
 
 		host_data, success = self._conn.request( request )
 
-	def remove_host( host, **optionals ):
+	def remove_host( self, host, **optionals ):
 		""" Removes an existing host on Logentries.
 			Required Parameters:
 				host (host object returned by the create_host method)			
@@ -189,9 +187,7 @@ class LogentriesClient(Account):
 				"reason": "Host 'host_name' removed."
 			}"""
 
-		helpers.check_user_key( self._account_key )
-
-		host_key = helpers.validate_parameter( Host, host, 'key' )
+		host_key = helpers.validate_parameter( models.Host, host, 'key' )
 
 		request = {
 			'request': constants.API_RM_HOST,
@@ -200,14 +196,14 @@ class LogentriesClient(Account):
 		}
 
 		removed_host, success = self._conn.request( request )
-		self.rm_host(removed_host['host_key'])
+		self.rm_host( host_key )
 
 		if success:
 			return True
 		else:
 			return False
 
-	def create_log_token( host, log_name, **optionals ):
+	def create_log_token( self, host, log_name, **optionals ):
 		""" Creates a log of source type Token TCP. 
 			Required Parameters:
 				host (The host object returned by create_host you wish to create the log in)
@@ -230,9 +226,9 @@ class LogentriesClient(Account):
 					  }
 			}"""
 
-		return _create_log( host, log_name, constants.LOG_TOKEN )
+		return self._create_log( host, log_name, constants.LOG_TOKEN )
 
-	def create_log_http( host, log_name, **optionals ):
+	def create_log_http( self, host, log_name, **optionals ):
 		""" Creates a log of source type HTTP PUT. 
 			Required Parameters:
 				host (The host object returned by create_host you wish to create the log in)
@@ -256,9 +252,9 @@ class LogentriesClient(Account):
 					  }
 			}"""
 
-		return _create_log( host, log_name, constants.LOG_HTTP )
+		return self._create_log( host, log_name, constants.LOG_HTTP )
 
-	def create_log_agent( host, log_name, filename, **optionals ):
+	def create_log_agent( self, host, log_name, filename, **optionals ):
 		""" Creates a log of source type 'agent'. To be used in conjunction with logentries agent.
 			Required Parameters:
 				host (The host object returned by create_host you wish to create the log in)
@@ -281,9 +277,9 @@ class LogentriesClient(Account):
 					  }
 			}"""
 
-		return _create_log( host, log_name, constants.LOG_AGENT, filename )
+		return self._create_log( host, log_name, constants.LOG_AGENT, filename )
 
-	def create_log_syslog( host, log_name, **optionals ):
+	def create_log_syslog( self, host, log_name, **optionals ):
 		""" Creates a log of source type Syslog.
 			Required Parameters:
 				host (The host object returned by create_host you wish to create the log in)
@@ -306,9 +302,9 @@ class LogentriesClient(Account):
 					  }
 			}"""
 
-		return _create_log( host_key, log_name, constants.LOG_SYSLOG )
+		return self._create_log( host_key, log_name, constants.LOG_SYSLOG )
 
-	def remove_log( host, log, **optionals ):
+	def remove_log( self, host, log, **optionals ):
 		""" Deletes an existing logfile on Logentries.
 			Required Parameters:
 				host_key (The UUID key of the host containing the log)
@@ -325,8 +321,6 @@ class LogentriesClient(Account):
 				"log_key" :"12345678-1234-1234-1234-123456789123"
 			}"""
 
-		helpers.check_user_key( self._account_key )
-
 		host_key = helpers.validate_parameter( Host, host, 'key' )
 		log_key = helpers.validate_parameter( Log, log, 'key' )
 
@@ -337,4 +331,10 @@ class LogentriesClient(Account):
 			'log_key': log_key
 		}
 
-		return self._conn.request( request )
+		removed_log, success = self._conn.request( request )
+
+		self.rm_log_from_host( host_key, log_key )
+		if success:
+			return True
+		else:
+			return False

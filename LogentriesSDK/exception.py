@@ -3,7 +3,7 @@ class InvalidAccountKeyException(Exception):
 		It can provided as a parameter to the method or by setting a $LOGENTRIES_ACCOUNT_KEY environment variable."""
 	pass
 
-class MissingModuleExcpetion(Exception):
+class MissingModuleException(Exception):
 	""" This Exception is raised when a python module is missing which is required to use this SDK. """
 	pass
 
