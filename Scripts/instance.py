@@ -7,7 +7,7 @@ aws_access_key_id = 'AKIAINT5AHHNNBWO3IOQ'
 aws_secret_access_key = '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'
 regions = ["eu-west-1","us_west_1"]
 
-cons = []
+cons = [boto.ec2.connect_to_region(region,aws_access_key_id=aws_access_key_id,aws_secret_access_key=aws_secret_access_key) for region in regions]
 
 
 def set_cons():

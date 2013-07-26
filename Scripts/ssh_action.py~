@@ -1,24 +1,42 @@
+from fabric.api import *
 import paramiko
+from paramiko.config import SSHConfig
+from os.path import expanduser
 
 
-ssh = paramiko.SSHClient()
-ssh.load_system_host_keys() # This loads the pre accepted host keys
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())   # this accepts the new host keys for ssh. Should be an option for users!
+class Connection:
+
+    def get_config(filename):
+        """ """
+        try:
+            if filename == None:
+                config_file = file(expanduser('~/.ssh/config'))
+            else:
+                config_file = file(filename)
+        except IOError:
+            pass
+        else:
+            config = SSHConfig()
+            config.parse(config_file)
+            return config
 
 
-
-def get_log_paths(instance):
-    ssh.connect(instance)
-    stdin, stdout, stderr=ssh.exec_command('find /var/log/ -name *.log')
-    print stdout.read()
-
-from fabric.api import local
-from fabric.decorators import parallel
-
-@parallel
-def host_type():
-    local('uname -ovs')
+    def __init__(self,filename=None):
+        self.client = paramiko.SSHClient()
+        self.config = get_config(filename)
+        self.config.load_system_host_keys()
+        self.config.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 
-if __name__ == '__main__':
-    host_type()
+    def get_instance_logpaths(self,instance):
+        """ """
+        result = []
+        ssh = self.get_client()
+        ssh.connect(instance)
+        stdin, stdout, stderr = ssh.exec_command('find /var/log/ -name *.log')
+        return [item.split('\n')[0] for item in stdout.readlines()], stderr
+
+
+    def add_ec2_instances(self,instances):
+        """ """
+        

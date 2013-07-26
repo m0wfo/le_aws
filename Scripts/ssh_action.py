@@ -2,6 +2,7 @@ from fabric.api import *
 import paramiko
 from paramiko.config import SSHConfig
 from os.path import expanduser
+import instance
 
 
 class Connection:
