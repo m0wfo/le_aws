@@ -58,12 +58,7 @@ class Client(models.Account):
 
 	def _create_log( self, host, log_name, source, filename=None):
 
-		if isinstance( host, models.Host ):
-			host_key = host.get_key()
-		elif isinstance( host, str):
-			host_key = host
-		else:
-			raise InvalidParametersException
+		host_key = helpers.inspect_host( host )
 
 		if not helpers.is_valid_log_source( source ):
 			raise InvalidLogSourceException
@@ -152,7 +147,7 @@ class Client(models.Account):
 				"user_key":"12345678-1234-1234-1234-123456789123"
 			}"""
 
-		host_key = helpers.validate_parameter( models.Host, host, 'key' )
+		host_key = helpers.inspect_host( host )
 
 		name = optionals.get( 'name', '' )
 		location = optionals.get( 'location', '' )
@@ -187,7 +182,7 @@ class Client(models.Account):
 				"reason": "Host 'host_name' removed."
 			}"""
 
-		host_key = helpers.validate_parameter( models.Host, host, 'key' )
+		host_key = helpers.inspect_host( host )
 
 		request = {
 			'request': constants.API_RM_HOST,
@@ -321,8 +316,8 @@ class Client(models.Account):
 				"log_key" :"12345678-1234-1234-1234-123456789123"
 			}"""
 
-		host_key = helpers.validate_parameter( Host, host, 'key' )
-		log_key = helpers.validate_parameter( Log, log, 'key' )
+		host_key = helpers.inspect_host( host )
+		log_key = helpers.inspect_log( log )
 
 		request = {
 			'request': API_RM_LOG,
