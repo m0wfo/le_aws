@@ -94,11 +94,10 @@ def get_instances():
                     if local_keys[aws_instance.key_name] is not None:
                         if aws_instance.platform is None:
                             print 'Platform is Linux for instance with id=%s and can be ssh-ed!'%aws_instance.id
-                        elif aws_instance.platform == 'windows':
-                            print 'Platform is windows'
+                            platf = 'linux'
                         else:
-                            print 'Platform is %s'%aws_instance.platform
-                         
+                            platf = aws_instance.platform
+                            print 'Platform is %s'%platf
                         if 'Name' in aws_instance.tags:
                             name = aws_instance.tags['Name']
                         else:
@@ -107,7 +106,7 @@ def get_instances():
                             user = aws_instance.tags['user']
                         else:
                             user = get_default_user(aws_instance.platform)
-                        instance = sdk.Instance(aws_id=aws_instance.id,ssh_key_name=local_keys[aws_instance.key_name],ip_address=aws_instance.ip_address,name=name,platform=aws_instance.platform,user=user)
+                        instance = sdk.Instance(aws_id=aws_instance.id,ssh_key_name=local_keys[aws_instance.key_name],ip_address=aws_instance.ip_address,name=name,platform=platf,user=user)
                         result.append(instance)
     return result
 
