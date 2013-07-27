@@ -22,21 +22,24 @@ class Connection:
 
 
     def __init__(self,filename=None):
-        self.client = paramiko.SSHClient()
-        self.config = get_config(filename)
-        self.config.load_system_host_keys()
-        self.config.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        self._config = get_config(filename)
 
+        self._client = paramiko.SSHClient()
+        self._client.load_system_host_keys()
+        self._client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    def get_config(self):
+        return self._config
 
     def get_instance_logpaths(self,instance):
         """ """
         result = []
         ssh = self.get_client()
-        ssh.connect(instance)
+        ssh.connect(hostname=instance.get_name(),ip=instance.get_ip_address(),username=instance.get_user(),port=instance.get_port(), allow_agent=True, look_for_keys=True)
         stdin, stdout, stderr = ssh.exec_command('find /var/log/ -name *.log')
         return [item.split('\n')[0] for item in stdout.readlines()], stderr
 
 
     def add_ec2_instances(self,instances):
         """ """
-        
+        pass

@@ -3,10 +3,10 @@ import os.path
 import json
 
 import ssh_keys
-import logentries
+#import logentries
 
-CONF_FILE = 'logentries_config.json'
-ACCOUNT_KEY,CONFIG = logentries.load_config(CONF_FILE)
+#CONF_FILE = 'logentries_config.json'
+#ACCOUNT_KEY,CONFIG = logentries.load_config(CONF_FILE)
 
 class Account:
    
@@ -233,6 +233,23 @@ class Instance(Host):
    def get_user(self):
       return self._user
 
+   @staticmethod
+   def load(i):
+      """ Args:
+      instance_attr is a dict object containing an instance attributes
+      """
+      if 'aws_id' in i:
+         ssh_key_name = i['ssh_key_name'] if 'ssh_key_name' in i else None
+         ip_address = i['ip_address'] if 'ip_address' in i else None
+         name = i['name'] if 'name' in i else None
+         key = i['key'] if 'key' in i else None
+         logs = i['logs'] if 'logs' in i else []
+         platform = i['platform'] if 'platform' in i else None
+         user = i['user'] if 'user' in i else None
+         return Instance(aws_id=i['aws_id'],ssh_key_name=ssh_key_name,ip_address=ip_address,name=name,key=key,logs=logs,platform=platform,user=user)
+      else:
+         return None
+
    def to_json(self):
       result = {"aws_id":self.get_aws_id(),"ssh_key_name":self.get_ssh_key_name(),"ip_address":self.get_ip_address(), "user": self.get_user()}
       result.update(super(Instance,self).to_json())
@@ -341,44 +358,145 @@ class LoggingConfFile:
             $InputFilePollInterval """+unicode(self.get_polling_period())+"""\n\n"""
 
 
-class ConfFile:
+class AWSConfFile:
 
-   def __init__(self,name='logentries_conf.json',instances=[]):
-      self._name = name
-      self._instances = instances
-
-   def create(self,conf_json):
-      pass
+   def __init__(self,filename='aws.json',instances=[]):
+      try:
+         conf_file = open(filename,'r')
+      except IOError:
+         print 'Cannot open file %s'%filename
+      else:
+         conf_json = json.load(conf_file)
+         conf_file.close()
+         self._name = filename
+         key_id = 'aws_access_key_id'
+         secret_key = 'aws_secret_access_key'
+         if key_id not in conf_json:
+            print '%s missing in %s'%(key_id,filename)
+            self._aws_access_key_id = None
+         else:
+            self._aws_access_key_id = conf_json[key_id]
+         if secret_key not in conf_json:
+            print '%s missing in %s'%(secret_key,filename)
+            self._aws_secret_access_key = None
+         else:
+            self._aws_secret_access_key = conf_json[secret_key]
+         if 'usernames' not in conf_json:
+            print 'usernames missing in %s'%(filename)
+            self._usernames = None
+         else:
+            self._usernames = conf_json['usernames']
+         if 'ssh_key_paths' not in conf_json:
+            print 'ssh_key_paths missing in %s'%(filename)
+            self._ssh_key_paths = None
+         else:
+            self._ssh_key_paths = conf_json['ssh_key_paths']
+         if 'ssh_keys' not in conf_json:
+            print 'ssh_keys missing in %s'%(filename)
+            self._ssh_keys = None
+         else:
+            self._ssh_keys = conf_json['ssh_keys']
+         if 'instances' not in conf_json:
+            print 'instances missing in %s'%(filename)
+            self._instances = None
+         else:
+            self._instances = []
+            for instance in conf_json['instances']:
+               self._instances.append(Instance.load(instance))
 
    def set_name(self,name):
-      _name = name
+      self._name = name
 
    def get_name(self):
-      return _name
+      return self._name
+
+   def set_aws_access_key_id(self,aws_access_key_id):
+      self._aws_access_key_id = aws_access_key_id
+
+   def get_aws_access_key_id(self):
+      return self._aws_access_key_id
+
+   def set_aws_secret_access_key(self,aws_secret_access_key):
+      self._aws_secret_access_key = aws_secret_access_key
+
+   def get_aws_secret_access_key(self):
+      return self._aws_secret_access_key
+
+   def set_usernames(self,usernames):
+      self._usernames = usernames
+
+   def add_username(self,username):
+      if username not in self._usernames:
+         self._usernames.append(username)
+
+   def add_usernames(self,usernames):
+      for username in usernames:
+         add_username(username)
+
+   def get_usernames(self):
+      return self._usernames
+
+   def set_ssh_key_paths(self,ssh_key_paths):
+      self._ssh_key_paths = ssh_key_paths
+
+   def get_ssh_key_paths(self):
+      return self._ssh_key_paths
+
+   def add_ssh_key_path(self,ssh_key_path):
+      if self.get_ssh_key_paths() is None:
+         self.set_ssh_key_paths([ssh_key_path])
+      elif ssh_key_path not in _ssh_key_paths:
+         self.get_ssh_key_paths().append(ssh_key_path)
+
+   def set_ssh_keys(self,ssh_keys):
+      self._ssh_keys = ssh_keys
+
+   def add_ssh_key(self,name,path):
+      self._ssh_keys[name] = path
+
+   def add_ssh_keys(self,ssh_keys):
+      self._ssh_keys.update(ssh_keys)
+
+   def get_ssh_keys(self):
+      return self._ssh_keys
 
    def set_instances(self,instances):
-      _instances = instances
+      self._instances = instances
+
+   def add_instance(self,instance):
+      if self.get_instances() is None:
+         self.set_instances([instance])
+      elif instance not in self.get_instances():
+         self.get_instances().append(instance)
+
+   def add_instances(self,instances):
+      for instance in instances:
+         self.add_instance(instance)
 
    def get_instances(self):
-      return _instances
+      return self._instances
 
    @staticmethod
-   def open():
-      conf_file = open(self.get_name(),'r')
+   def open(filename):
+      try:
+         conf_file = open(filename,'r')
+      except IOError:
+         print 'Cannot open file %s'%filename
+         return None
       conf_json = json.load(conf_file)
       conf_file.close()
-      return create(conf_json)
+      return self.__init__(conf_json)
 
    def save(self):
       conf_file = open(self.get_name(),'w')
-      conf_file.write(json.dumps(self.to_json()['instances']))
+      conf_file.write(json.dumps(self.to_json()))
       conf_file.close()
 
    def to_json(self):
       instance_list = []
       for instance in self.get_instances():
          instance_list.append(instance.to_json())
-      return {"name":self.get_name(),"instances":instance_list}
+      return {"aws_access_key_id":self.get_aws_access_key_id(),"aws_secret_access_key":self.get_secret_access_key(),"usernames":self.get_usernames,"ssh_key_paths":self.get_ssh_key_paths(),"usernames":self.get_usernames(),"ssh_keys":self.get_ssh_keys(),"instances":instance_list}
 
    def __unicode__(self):
       return json.dumps(self.to_json())

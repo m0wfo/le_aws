@@ -1,80 +1,110 @@
-import boto.ec2
 import os.path
+from os.path import expanduser
 
-aws_access_key_id = 'AKIAINT5AHHNNBWO3IOQ'
-aws_secret_access_key = '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'
-regions = ["eu-west-1","us_west_1"]
+class ssh_keys:
 
-cons = []
+    @staticmethod
+    def expand_path(path):
+        return os.path.expanduser(path)
+
+    @staticmethod
+    def expand_paths(paths):
+        result = []
+        for path in paths:
+            expanded_path = os.path.expanduser(path)
+            if expanded_path not in result:
+                result.append(expanded_path)
+        return result
+
+    def __init__(self,names=None,paths=None):
+        self._paths = []
+        if paths is not None:
+            self._paths.extend(paths)
+        if names == None:
+            self._names = []
+        else:
+            self._names = names
+        self._mapping = {}
+
+    def get_paths(self):
+        """ """
+        return self._paths
+
+    def set_paths(self,paths):
+        """ """
+        self._paths = paths
+
+    def get_names(self):
+        """ """
+        return self._names
+
+    def set_names(self,names):
+        """ """
+        self._names = names
+
+    def get_mappings(self):
+        """ """
+        return self._mappings
+
+    def set_mappings(self,mappings):
+        """ """
+        self._mappings = mappings
+
+    def get_path(self,name):
+        """ """
+        if name in self.get_mapping():
+            return self.get_mapping()[name]
+        return None
+
+    def get_key_path(self,name):
+        """ """
+        if name in self.get_mapping():
+            return '%s%s'%(self.get_mapping()[name],name)
+        return None
+
+    def set_path(self,name,path):
+        """ """
+        if path not in self.get_paths():
+            self.get_mapping()[name] = path
+
+    def get_key(self,name):
+        """ """
+        path = self.get_path(name)
+        if path is not None:
+            return {name:path}
+        return None
+
+    def get_key_onpath(self,path,key_name):
+        """
+        Args:
+        key_name is the name of the key, incuding its extension, e.g. my_key.pem
+        """
+        key_full_path = '%s%s%s'%(path,key_name,'.pem')
+        print os.path.expanduser(key_full_path)
+        if os.path.isfile(os.path.expanduser(key_full_path)):
+            return key_full_path
+        return None
+
+    def get_keys_onpath(self,path,key_names):
+        """ """
+        result = {}
+        for key_name in key_names:
+            key_path = self.get_key_onpath(path,key_name)
+            if key_path is not None and key_path not in result:
+                result[key_name] = key_path
+        return result
 
 
-def set_cons():
-    """ """
-    global cons 
-    cons = [boto.ec2.connect_to_region(region,aws_access_key_id=aws_access_key_id,aws_secret_access_key=aws_secret_access_key) for region in regions]
-
-def close_cons():
-    """ """
-    for con in cons:
-        if con is not None:
-            con.close()
-
-def get_con_id(region):
-    """ """
-    return regions.index(region)
-
-def get_con(region):
-    """ """
-    return cons[get_con_id(region)]
-
-def get_key_names(region):
-    """ Args"""
-    con = get_con(region)
-    if con is not None:
-        key_pairs = con.get_all_key_pairs()
-        return [key_pair.name for key_pair in key_pairs]
-    return []
-
-def get_key_names():
-    """ Args"""
-    result = []
-    for region in regions:
-        con = get_con(region)
-        if con is not None:
-            key_pairs = con.get_all_key_pairs()
-            result.extend([key_pair.name for key_pair in key_pairs])
-    return result
-
-def get_key_path(path,key_name):
-    """ """
-    choices = ['%s%s.pem'%(path,key_name),'%s/%s.pem'%(path,key_name)]
-    for choice in choices:
-        print choice
-        if os.path.isfile(os.path.abspath(choice)):
-            return choice
-    return None
-
-def get_keys_path(path,key_names):
-    """ """
-    result = []
-    for key_name in key_names:
-        key_path = get_key_path(path,key_name)
-        if key_path is not None:
-            result.append(key_path)
-    return result
-
-
-def get_keys_paths(paths,key_names):
-    """ """
-    result = []
-    for path in paths:
-        key_path = get_keys_path(path,key_names)
-        result.extend(key_path)
-    return result
+    def get_keys_onpaths(self,paths,key_names):
+        """ """
+        result = {}
+        for path in paths:
+            result.update(self.get_keys_onpath(path,key_names))
+        return result
 
 if __name__ == '__main__':
     set_cons()
     paths = ['%s/.ssh/'%os.path.expanduser('~')]
     key_names = get_key_names()
-    print get_keys_paths(paths,key_names)
+    print get_keys_onpaths(paths,key_names)
     [con.close() for con in cons]
