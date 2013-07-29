@@ -480,11 +480,12 @@ class AWSConfFile:
    def open(filename):
       try:
          conf_file = open(filename,'r')
+         conf_json = json.load(conf_file)
       except IOError:
          print 'Cannot open file %s'%filename
          return None
-      conf_json = json.load(conf_file)
-      conf_file.close()
+      else:
+         conf_file.close()
       return self.__init__(conf_json)
 
    def save(self):
@@ -496,7 +497,7 @@ class AWSConfFile:
       instance_list = []
       for instance in self.get_instances():
          instance_list.append(instance.to_json())
-      return {"aws_access_key_id":self.get_aws_access_key_id(),"aws_secret_access_key":self.get_secret_access_key(),"usernames":self.get_usernames,"ssh_key_paths":self.get_ssh_key_paths(),"usernames":self.get_usernames(),"ssh_keys":self.get_ssh_keys(),"instances":instance_list}
+      return {"aws_access_key_id":self.get_aws_access_key_id(),"aws_secret_access_key":self.get_aws_secret_access_key(),"usernames":self.get_usernames,"ssh_key_paths":self.get_ssh_key_paths(),"usernames":self.get_usernames(),"ssh_keys":self.get_ssh_keys(),"instances":instance_list}
 
    def __unicode__(self):
       return json.dumps(self.to_json())

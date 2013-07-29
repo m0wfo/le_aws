@@ -13,8 +13,8 @@ def load_config(file):
       print 'Please enter your account key in '
    return ACCOUNT_KEY,CONFIG
 
-CONFIG_FILE = 'logentries_config.json'
-CONFIG = load_config(CONFIG_FILE)
+#CONFIG_FILE = 'logentries_config.json'
+#CONFIG = load_config(CONFIG_FILE)
 AWS_ACCESS_KEY_ID = 'AKIAINT5AHHNNBWO3IOQ'
 AWS_SECRET_ACCESS = '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'
 REGIONS = ["eu-west-1","us_west_1"]
