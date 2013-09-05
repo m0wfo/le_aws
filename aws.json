@@ -1,0 +1,17 @@
+{
+  "aws_secret_access_key": "0vNc1N5F84mnkyE6Z5hTRBpp1JIjozhMgszrQ6Mu", 
+  "aws_access_key_id": "AKIAINT5AHHNNBWO3IOQ", 
+  "account_key": "9d1d1f88-eb3a-4522-8196-f45414530ef7",
+  "instances": [], 
+  "usernames": [
+    "ec2-user", 
+    "ubuntu", 
+    "root"
+  ], 
+  "ssh_keys": [], 
+  "log_filters": [], 
+  "ec2_filters": [], 
+  "ssh_key_paths": [
+    "~/.ssh/"
+  ]
+}
