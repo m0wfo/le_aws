@@ -49,12 +49,34 @@ import LogentriesSDK.helpers as helpers
 import LogentriesSDK.models as models
 import inspect
 
-class Client(models.Account):
+class Client(object):
 
 	def __init__(self, account_key=None):
 		acc_key = helpers.check_user_key(account_key)
-		models.Account.__init__(self, acc_key)
+		self._account_key = acc_key
 		self._conn = LogentriesConnection()
+
+	def get_account_key(self):
+		return self._account_key
+
+	def get_account(self):
+		request = {
+			'request': constants.API_GET_ACCOUNT,
+			'user_key': self._account_key,
+			'load_hosts': 'true',
+			'load_logs': 'true'
+		}
+		account_data, success = self._conn.request( request )
+
+		if not success:
+			print 'Error retrieving account wiht key %s'%self.get_account_key()
+		print '==============================='
+		print unicode(account_data)
+		print '==============================='
+
+		account = models.Account()
+		account.load_data(account_data)
+		return account
 
 	def _create_log( self, host, log_name, source, filename=None):
 
@@ -78,7 +100,12 @@ class Client(models.Account):
 		log_data, success = self._conn.request( request )
 
 		if success:
-			return self.add_log_to_host( host_key, log_data )
+			if 'log' in log_data:
+				host.add_log(log_data['log'] )
+				return host
+			else:
+				print 'Log information was missing when creating log, log_name=%s, host_name=%s'%(str(log_name),str(host.get_name()))
+				return None
 		else:
 			return None
 
@@ -120,8 +147,15 @@ class Client(models.Account):
 		host_data, success = self._conn.request( request )
 
 		if success:
-			return self.add_host(host_data)
+			host = models.Host()
+			if 'host' in host_data:
+				host.load_data(host_data['host'])
+				return host
+			else:
+				print 'Host is missing from Response.'
+				return None
 		else:
+			print 'Response for host creation with name %s is not OK.'%str(name)
 			return None
 
 	def update_host( self, host, **optionals ): 

@@ -9,6 +9,8 @@ LE_SERVER_API_PORT = 443
 #
 # API calls
 #
+API_GET_ACCOUNT = "get_user"
+
 API_NEW_HOST = "register"
 API_SET_HOST = "set_host"
 API_RM_HOST = "rm_host"
