@@ -3,15 +3,11 @@ import os.path
 import json
 
 import ssh_keys
-#import logentries
-
-#CONF_FILE = 'logentries_config.json'
-#ACCOUNT_KEY,CONFIG = logentries.load_config(CONF_FILE)
 
 class Account:
    
    def __init__(self,account_key):
-      self._key = account_ke
+      self._key = account_key
       self._hosts = None
 
    def set_key(self,key):
@@ -39,6 +35,9 @@ class Account:
       return account
 
    def to_json(self):
+      """
+      Returns a dictionnary representing the attribute values of this account.
+      """
       result = {"key":self.get_key()}
       hosts_json = []
       for host in self.get_hosts():
@@ -70,9 +69,6 @@ class Log:
       log.set_token(log_data["source"])
       log.set_port(log_data["port"])
       return log
-
-   def to_json(self):
-      return {"name":self.get_name(),"path":self.get_path(),"key":self.get_key(),"token":self.get_token()}
 
    def set_value(attr,value):
       attr = value
@@ -115,8 +111,11 @@ class Log:
 
    def get_port(self):
       return self._port
-   
+
    def to_json(self):
+      """
+      Returns a dictionnary representing the attribute values of this log.
+      """
       return {"key":self.get_key(),"name":self.get_name(),"path":self.get_path(),"token":self.get_token(),"source":self.get_source(),"port":self.get_port()}
 
    def __unicode__(self):
@@ -139,47 +138,84 @@ class Host(object):
       return host
 
    def set_name(self,name):
+      """
+      Args: name is a string.
+      Sets this host name to name.
+      """
       self._name = name
 
-   def set_platform(self,platform):
+   def set_platform(self,platform_name):
+      """
+      Args: platform is a string.
+      Sets this host platform name to platform_name.
+      """
       self._platform = platform
 
    def set_key(self,key):
+      """
+      Args: key is a string.
+      Sets this host key to key.
+      """
       self._key = key
 
    def add_log(self,log):
-      """ Args: log is not None """
+      """
+      Args: log is not None Log object.
+      Adds log to the list of logs associated to this account.
+      """
       if self._logs is None:
          self._logs = [log]
       else:
          self._logs.append(log)
 
    def add_logs(self,logs):
+      """
+      Args: logs is a list of Log objects that are not None.
+      Adds all item in logs to the list of logs associated to this account.
+      """
       for log in logs:
          self.add_log(log)
 
    def get_name(self):
+      """ 
+      Returns this host name.
+      """
       return self._name
 
    def get_platform(self):
+      """ 
+      Returns this host name or None if it has no name.
+      """
       return self._platform
 
    def get_key(self):
+      """ 
+      Returns the Logentries key associated to this host or None if it is not associated to any key.
+      """
       return self._key
 
    def get_log(self,log_key):
-      """ """
+      """ 
+      Args: log_key is a string.
+      Returns the Log object associated with key log_key in Logentries or None if no log with key log_key is associated to this host.
+      """
       for log in self._logs:
          if log.get_key() == log_key:
             return log
       return None
 
    def get_logs(self):
+      """
+      Returns the list of log objects associated with this host.
+      """
       return self._logs
 
    @staticmethod
    def create(host_data):
-      """ """
+      """
+      Args: host_data is a dictionnary containing host object information. It is assumed that host key, name and platform are provided in this dictionanry, i.e. 'key', 'name' and 'platform' are keys of this dictionnary.
+      Returns a host object whose attributes are the ones provided in host_data.
+      """
       host = Host(key=host_data["key"])
       name = host_data["name"]
       platform = host_data["platform"]
@@ -192,51 +228,102 @@ class Host(object):
       return host
 
    def to_json(self):
+      """
+      Returns a dictionnary representing the attribute values of this host.
+      """
       logs_json = [log.to_json() for log in self.get_logs()]
       return {"name":self.get_name(),"key":self.get_key(),"platform":self.get_platform(),"logs":logs_json}
 
    def __unicode__(self):
+      """
+      Returns a unicode representation of this host. This representation is json compatible, i.e. it can be loaded into a dictionnary.
+      """
       return json.dumps(self.to_json())
 
 
 class Instance(Host):
-   """ """
+   """
+   Instance class subclasses Host and represents physical EC2 instances. Compare to host objects, instance objects contain information about connecting to the corresponding EC2 instance, e.g. ip address, ssh key filename, username, etc. 
+   """
 
-   def __init__(self,aws_id,ssh_key_name=None,ip_address=None,name=None,key=None,logs=[],platform=None, user=None):
+   def __init__(self,aws_id,ssh_key_name=None,ip_address=None,name=None,key=None,port=None,logs=[],platform=None, username=None):
       self._aws_id = aws_id
       self._ssh_key_name = ssh_key_name
       self._ip_address = ip_address
-      self._user = user
+      self._username = username
+      self._port = port
       super(Instance,self).__init__(name,key,logs,platform)
 
    def set_aws_id(self,aws_id):
+      """
+      Args: aws_id is a string. It represents the associated ec2 instance id.
+      Sets the id of this instance to aws_id.
+      """
       self._aws_id = aws_id
 
    def set_ssh_key_name(self,ssh_key_name):
+      """
+      Args: ssh_key_name is a string. It represents the location of a file containing an ssh key.
+      Sets the path of the file containing the ssh key of allowing to connect to this instance to ssh_key_name.
+      """
       self._ssh_key_name = ssh_key_name
 
    def set_ip_address(self,ip_address):
+      """
+      Args: ip_address is a string. It represents the ip_address of this instance.
+      Sets the ip address of this instance to ip_address.
+      """
       self._ip_address = ip_address
 
-   def set_user(self,user):
-      self._user = user
+   def set_username(self,username):
+      """
+      Args: username is a string. It represents the user name with which to log on to this instance.
+      Sets the user name of this instance to username.
+      """
+      self._username = username
 
    def get_aws_id(self):
+      """
+      Returns the aws id of this instance.
+      """
       return self._aws_id
 
+   def set_port(self,port):
+      """
+      Args: port is an integer. It represents the port on which this instance can be sshed.
+      Sets the port on which to shh this instance to port.
+      """
+      self._port = port
+
+   def get_port(self):
+      """
+      Returns the port on which to ssh this instance.
+      """
+      return self._port
+
+
    def get_ssh_key_name(self):
+      """
+      Returns the location of a file containing an ssh key with which to connect to this instance.
+      """
       return self._ssh_key_name
 
    def get_ip_address(self):
+      """
+      Returns this instance ip address.
+      """
       return self._ip_address
 
-   def get_user(self):
-      return self._user
+   def get_username(self):
+      """
+      Returns the user name with which to connect to this instance.
+      """
+      return self._username
 
    @staticmethod
    def load(i):
-      """ Args:
-      instance_attr is a dict object containing an instance attributes
+      """ 
+      Args: i is a dict object containing an instance attributes.
       """
       if 'aws_id' in i:
          ssh_key_name = i['ssh_key_name'] if 'ssh_key_name' in i else None
@@ -245,18 +332,28 @@ class Instance(Host):
          key = i['key'] if 'key' in i else None
          logs = i['logs'] if 'logs' in i else []
          platform = i['platform'] if 'platform' in i else None
-         user = i['user'] if 'user' in i else None
-         return Instance(aws_id=i['aws_id'],ssh_key_name=ssh_key_name,ip_address=ip_address,name=name,key=key,logs=logs,platform=platform,user=user)
+         username = i['username'] if 'username' in i else None
+         port = i['port'] if 'port' in i else None
+         return Instance(aws_id=i['aws_id'],ssh_key_name=ssh_key_name,ip_address=ip_address,name=name,key=key,logs=logs,platform=platform,username=username,port=port)
       else:
          return None
 
    def to_json(self):
-      result = {"aws_id":self.get_aws_id(),"ssh_key_name":self.get_ssh_key_name(),"ip_address":self.get_ip_address(), "user": self.get_user()}
+      """
+      Returns a dictionnary representing the attribute values of this instance.
+      """
+      result = {"aws_id":self.get_aws_id(),"ssh_key_name":self.get_ssh_key_name(),"ip_address":self.get_ip_address(), "username": self.get_username(),"port":self.get_port()}
       result.update(super(Instance,self).to_json())
       return result
 
    def __unicode__(self):
       return json.dumps(self.to_json())
+
+   def __eq__(self, other):
+      return (isinstance(other, self.__class__) and self.get_aws_id() == other.get_aws_id())
+
+   def __ne__(self, other):
+      return not self.__eq__(other)
 
 
 class LoggingConfFile:
@@ -298,6 +395,9 @@ class LoggingConfFile:
    def get_polling_period(self):
       return self._polling_period
 
+   def to_model_rep(self):
+      return '# LOGENTRIES MODEL:'+self.get_host().to_json()+'\n'
+
    @staticmethod
    def open():
       conf_file = open(self.get_name(),'r')
@@ -327,12 +427,31 @@ class LoggingConfFile:
       # Set the rsyslog polling policy 
       conf_file.write(self.get_poll_rsyslog_conf())
       conf_file.write(templates)
+      conf_file.write(self.to_model_rep())
       conf_file.close()
+
+   @staticmethod
+   def load_rsyslog_conf(self):
+      """ """
+      # Open configuration file
+      conf_file = open(self.get_name(),'r')
+      for line in conf_file.readlines():
+         if 'Logentries Model' in line:
+            conf_json_array = string.split(line,':',1)
+            if len(conf_json_array) > 1:
+               return conf_json_array[1]
+            else:
+               print 'Wrong format for Logentries Model in %s'%self.get_name()
+               return
+      print 'Logentries Model bot found in %s'%self.get_name()
+      return 
 
 
    def create_rsyslog_entry(self,log):
-      """ Returns the strings representing an rsyslog template as well as an rsyslog entry for the log data provided
-      Args: log_data must contain the path to the log file to be followed by rsyslog"""
+      """ 
+      Args: log_data must contain the path to the log file to be followed by rsyslog
+      Returns the strings representing an rsyslog template as well as an rsyslog entry for the log data provided
+      """
       file_path = log.get_name()
       file_id = file_path.replace('/','_')
       format_name = "LogentriesFormat_"+file_id
@@ -468,10 +587,27 @@ class AWSConfFile:
          self.set_instances([instance])
       elif instance not in self.get_instances():
          self.get_instances().append(instance)
+      else:
+         for i in range(0,len(self.get_instances())):
+            if self.get_instances()[i] == instance:
+               self.get_instances()[i] = Instance.load(instance.to_json())
+               break
 
    def add_instances(self,instances):
       for instance in instances:
          self.add_instance(instance)
+
+   def get_instance(self,aws_id):
+      for i in self.get_instances():
+         if i.get_aws_id() == aws_id:
+            return i
+      return None
+
+   def set_instance(self,aws_id,instance):
+      for i in self.get_instances():
+         if i.get_aws_id == aws_id:
+            i = instance
+      return None
 
    def get_instances(self):
       return self._instances

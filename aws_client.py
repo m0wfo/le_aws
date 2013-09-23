@@ -1,4 +1,3 @@
-from fabric.api import *
 import paramiko
 import boto.ec2
 import boto.manage.cmdshell
@@ -327,7 +326,7 @@ class AWS_Client(object):
              log_paths.extend([logpath.split('\n')[0] for logpath in f.readlines()])
          print 'Log Paths: %s'%log_paths
          # Remove the remote tmp file
-         _, _, stderr = ssh.exec_command('rm /tmp/log_list.txt')
+         _, _, stderr = ssh.exec_command('rm %s'%tmp_file_name)
          if stderr != '':
             print 'Error while removing temporary file /tmp/log_list.txt on %s. %s'%(instance.get_ip_address(),stderr.read())
 
@@ -421,11 +420,18 @@ class AWS_Client(object):
 
                chan = ssh.get_transport().open_session()
                chan.get_pty()
-               chan.exec_command('sudo /etc/init.d/rsyslog restart')
+               chan.exec_command('sudo service rsyslog restart > /tmp/output.txt')
            except paramiko.SSHException as e:
                print 'Connection to %s with user %s and ssh key %s failed. %s'%(instance.get_ip_address(),username,key_filename,e)
            except:
                print 'Connection to %s with user %s and ssh key %s failed. %s'%(instance.get_ip_address(),username,key_filename)
+
+           try:
+               f = ssh.open_sftp().open('/tmp/output.txt')
+           except IOError as e:
+               print 'Could not open %s. %s'%('/tmp/output.txt',e.message)
+           for line in f.readlines():
+               print line
 
            if chan.recv_stderr_ready():
                print 'Error when restarting rsyslog. %s'%chan.recv_stderr(1024)
