@@ -1,17 +1,70 @@
 {
-  "aws_secret_access_key": "0vNc1N5F84mnkyE6Z5hTRBpp1JIjozhMgszrQ6Mu", 
-  "aws_access_key_id": "AKIAINT5AHHNNBWO3IOQ", 
-  "account_key": "9d1d1f88-eb3a-4522-8196-f45414530ef7",
-  "instances": [], 
+  "instances": [
+    {
+      "username": "ec2-user", 
+      "logs": [
+        "/var/log/maillog", 
+        "/var/log/yum.log", 
+        "/var/log/audit/audit.log", 
+        "/var/log/cloud-init.log", 
+        "/var/log/dracut.log", 
+        "/var/log/lastlog", 
+        "/var/log/tallylog", 
+        "/var/log/boot.log"
+      ], 
+      "ssh_key_name": "~/.ssh/data_host.pem", 
+      "filters": [
+        "/var/log/"
+      ], 
+      "log_conf": null, 
+      "ip_address": "54.228.83.64", 
+      "port": null, 
+      "aws_id": "i-428fe60d"
+    }, 
+    {
+      "username": "ubuntu", 
+      "logs": [
+        "/var/log/boot.log", 
+        "/var/log/mail.log", 
+        "/var/log/ufw.log", 
+        "/var/log/syslog", 
+        "/var/log/upstart/udev-fallback-graphics.log", 
+        "/var/log/upstart/whoopsie.log", 
+        "/var/log/upstart/procps-virtual-filesystems.log", 
+        "/var/log/upstart/rsyslog.log", 
+        "/var/log/upstart/acpid.log", 
+        "/var/log/upstart/dbus.log", 
+        "/var/log/upstart/container-detect.log", 
+        "/var/log/upstart/procps-static-network-up.log", 
+        "/var/log/upstart/console-setup.log", 
+        "/var/log/lastlog", 
+        "/var/log/kern.log", 
+        "/var/log/landscape/sysinfo.log", 
+        "/var/log/auth.log", 
+        "/var/log/cloud-init.log"
+      ], 
+      "ssh_key_name": "~/.ssh/data_host.pem", 
+      "filters": [
+        "/var/log/"
+      ], 
+      "log_conf": null, 
+      "ip_address": "54.217.103.238", 
+      "port": null, 
+      "aws_id": "i-7d2b2732"
+    }
+  ], 
   "usernames": [
     "ec2-user", 
     "ubuntu", 
     "root"
   ], 
   "ssh_keys": [], 
+  "aws_secret_access_key": "0vNc1N5F84mnkyE6Z5hTRBpp1JIjozhMgszrQ6Mu", 
   "log_filters": [], 
   "ec2_filters": [], 
   "ssh_key_paths": [
     "~/.ssh/"
-  ]
+  ], 
+  "aws_access_key_id": "AKIAINT5AHHNNBWO3IOQ", 
+  "account_key": "9d1d1f88-eb3a-4522-8196-f45414530ef7"
 }

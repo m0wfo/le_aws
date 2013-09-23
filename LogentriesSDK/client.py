@@ -15,6 +15,7 @@ LOGENTRIES_ACCOUNT_KEY contaning your account key.
 
 Once created, you have the following methods at your disposal.  * indicates a parameter is optional
 
+client.get_account()
 client.create_host( name )
 client.update_host( host, *name, *location )
 client.remove_host( host )
@@ -69,10 +70,8 @@ class Client(object):
 		account_data, success = self._conn.request( request )
 
 		if not success:
-			print 'Error retrieving account wiht key %s'%self.get_account_key()
-		print '==============================='
-		print unicode(account_data)
-		print '==============================='
+			print 'Error retrieving account with key %s'%self.get_account_key()
+			return None
 
 		account = models.Account()
 		account.load_data(account_data)

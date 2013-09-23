@@ -1,4 +1,3 @@
-from fabric.api import *
 import paramiko
 import boto.ec2
 import boto.manage.cmdshell
