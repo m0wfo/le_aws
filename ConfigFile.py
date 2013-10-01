@@ -12,12 +12,129 @@ from LogentriesSDK.client import Client
 from LogentriesSDK.models import Account
 from aws_client import *
 
+
+class InstancesConf:
+   """
+   This class represents a list of instances with information about connecting to these instances: username, ip address, ssh key location as well as the logentries account key related to this list of instances. It also contains filter regarding log file locations on those instances.
+   """
+   def __init__(self,account_key,instances=[]):
+      self._account_key = account_key
+      self._instances = instances
+
+   def load_conf_data(self,conf_json):
+      # Specify the logentries account key related to these instances
+      if 'account_key' in conf_json:
+         self._account_key = conf_json['account_key']
+      else:
+         print '%s missing in configuration'%('account_key')
+         logger.error('%s missing in configuration','account_key')
+         self._account_key = None
+         
+      if 'log_filters' in conf_json:
+         self._log_filters = [LogFilter.load_json(log_filter_raw) for log_filter_raw in conf_json['log_filters']]
+      else:
+         print '%s missing in configuration'%('log_filters')
+         logger.error('%s missing in configuration','log_filters')
+         self._log_filters = {}
+
+      if 'instances' in conf_json:
+         self._instances = []
+         for instance_data in conf_json['instances']:
+            instance = Instance.Instance.load_instance_data(instance_data)
+            self._instances.append(instance)
+      else:
+         print 'instances missing in configuration'
+         logger.error('instances missing in configuration')
+         self._instances = None
+
+
+   def load_conf_file(self,filename):
+      try:
+         conf_file = open(filename,'r')
+      except IOError:
+         print 'Cannot open file %s'%filename
+         logger.error('Cannot open file %s',filename)
+      else:
+         conf_json = json.load(conf_file)
+         conf_file.close()
+         self.load_conf_data(conf_json)
+
+   def set_log_filters(self,log_filters):
+      self._log_filters = log_filters
+
+   def get_log_filters(self):
+      return self._log_filters
+
+   def set_account_key(self,account_key):
+      self._account_key = account_key
+
+   def get_account_key(self):
+      return self._account_key
+
+   def set_instances(self,instances):
+      self._instances = instances
+
+   def add_instance(self,instance):
+      if self.get_instances() is None:
+         self._instances = [instance]
+      elif instance not in self.get_instances():
+         self._instances.append(instance)
+      else:
+         for i in range(0,len(self.get_instances())):
+            if self.get_instances()[i] == instance:
+               self._instances[i] = Instance.load_aws_data(instance.to_json())
+               break
+
+   def add_instances(self,instances):
+      for instance in instances:
+         self.add_instance(instance)
+
+   def get_instance_with_id(self,instance_id):
+      for i in self.get_instances():
+         if i.get_instance_id() == instance_id:
+            return i
+      return None
+
+   def set_instance(self,instance_id,instance):
+      for k in range(0,len(self.get_instances())):
+         i = self.get_instances()[k]
+         if i is None:
+             print 'Error. Instance is None, id=%s'%instance_id
+             logger.error('Error. Instance is None, id=%s',instance_id)
+         if i.get_instance_id() == instance_id:
+            self._instances[k] = instance
+            return
+      self.add_instance(instance)
+      return
+
+   def get_instances(self):
+      return self._instances
+
+
+   def save(self,filename):
+      conf_file = open(filename,'w')
+      conf_file.write(json.dumps(self.to_json(),indent=2))
+      conf_file.close()
+
+   def to_json(self):
+      instance_list = []
+      for instance in self.get_instances():
+         instance_list.append(instance.to_json())
+      return {"account_key":self.get_account_key(),"instances":instance_list}
+
+   def __unicode__(self):
+      return json.dumps(self.to_json())
+
+
+
 class LoggingConfFile:
    """ """
 
-   def __init__(self,name='logentries.conf',conf_format='rsyslog',host=None,polling_period=10):
+   def __init__(self,name='logentries.conf',conf_format='rsyslog',host=None,instance_logs=[],polling_period=10):
       self._name = name
       self._conf_format = conf_format
+      # _instance_logs is a list of mapping between paths and log keys, i.e. _instance_logs=[{'path':path,'log_key':key},...]
+      self._instance_logs = instance_logs
       self._host=host
       self._polling_period = polling_period
 
@@ -30,9 +147,14 @@ class LoggingConfFile:
    def set_host(self,host):
       self._host = host
 
-
    def set_polling_period(polling_period):
       self._polling_period = polling_period
+
+   def set_instance_logs(instance_logs):
+      self._instance_logs = instance_logs
+
+   def get_instance_log_map(self):
+      return self._instance_log_map
 
    def get_format(self):
       return self._conf_format
@@ -46,10 +168,16 @@ class LoggingConfFile:
    def get_polling_period(self):
       return self._polling_period
 
+   def add_instance_log(self,instance_log):
+      self._instance_logs.append(instance_log)
+
    def to_model_rep(self):
       model_rep = '#LOGENTRIES_MODEL:'+unicode(self.get_host().get_key())+'\n'
-      for log in self.get_host().get_logs():
-         model_rep = model_rep + '#' + unicode(log.to_json()) + '\n' 
+      for instance_log in self.get_instance_logs():
+         log = self.get_host().get_log(instance_log.get_logentries_log().get_key())
+         # the logentries log associated to instance log is updated.
+         instance_log = Instance.InstanceLog(instance_log.get_path(),log)
+         model_rep = model_rep + '#' + unicode(instance_log.to_json()) + '\n' 
       return model_rep
 
    def open(self):
@@ -88,6 +216,7 @@ class LoggingConfFile:
       conf_file.close()
 
 
+   # Check if this is called and add code for instance_logs if it is
    def load_data(self,conf_data):
       if 'name' in conf_data:
          self._name = conf_data['name']
@@ -118,9 +247,10 @@ class LoggingConfFile:
          elif line.startswith('#LOG:'):
             log_conf_array = line.split(':',1)
             if len(log_conf_array) > 1:
-               log = Log()
-               log.load_data(json.load(log_conf_array[1]))
-               host.add_log(log)
+               instance_log = InstanceLog()
+               instance_log.load_data(json.load(log_conf_array[1]))
+               host.add_log(instance_log.get_logentries_log())
+               log_conf.add_instance_log(instance_log)
             else:
                print 'Wrong log format for Logentries Model in %s'%log_conf.get_name()
                return None
@@ -144,7 +274,7 @@ class LoggingConfFile:
       if not log.get_token():
          return "","";
       file_path = log.get_filename()
-      file_id = 'tag%s'%str(index)#file_path.replace('/','').replace('.','')
+      file_id = 'tag%s'%str(index)
       format_name = 'format_%s'%file_id
       return """# FILE
             $InputFileName """+file_path+"""
@@ -170,7 +300,7 @@ class LoggingConfFile:
 
    def to_json(self):
       """ """
-      result = {"name":self.get_name(),"conf_format":self.get_format(),"host":(None if self.get_host() is None else self.get_host().to_json()),"polling_period":self.get_polling_period()}
+      result = {"name":self.get_name(),"conf_format":self.get_format(),"instance_logs": [instance_log.to_json() for instance_log in self.get_instance_logs()],"host":(None if self.get_host() is None else self.get_host().to_json()),"polling_period":self.get_polling_period()}
 
       
 if __name__ == '__main__':
@@ -197,4 +327,4 @@ if __name__ == '__main__':
       #print host.get_name() + " - " + log_str + "]"
       #print host.get_name() + " - " + str(len(host._logs))
    for instance in aws_client.get_aws_conf().get_instances():
-      print str(instance.get_aws_id()) + " - " + str(instance.get_ip_address())
+      print str(instance.get_instance_id()) + " - " + str(instance.get_ip_address())
