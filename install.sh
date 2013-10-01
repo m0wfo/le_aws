@@ -90,9 +90,13 @@ echo "========"
 
 # install pip and python-dev if not present on the system
 # Debian/Ubuntu
-if $DistroBasedOn=="debian"; then
-    echo "Installing python-pip"
-    sudo apt-get install python-pip
+if [ "$DistroBasedOn" == "debian" ]; then
+    # TODO: Check if this is really necessary or if this could be avoided by not specifying the virtualenv version
+    echo "Updating apt"
+    sudo apt-get update
+    # Installing curl
+    echo "Updating apt"
+    sudo apt-get install wget
     # TODO: should we avoid installing python-dev and paramiko for a 'local' setup?
     echo "Installing python-dev"
     sudo apt-get install python-dev
@@ -103,16 +107,16 @@ fi
 # Fedora
 #sudo yum install python-pip
 
+# create working directory
+if [ ! -d logentries ]; then
+    mkdir logentries;
+fi
+cd logentries
+
 # install virutalenv
-pip install virtualenv
-
-# install scripts in home dir
-cd
-mkdir aws_script
-cd aws_script
-
-# create virtual environment
-virtualenv env
+wget --no-check-certificate https://pypi.python.org/packages/source/v/virtualenv/virtualenv-1.10.tar.gz
+tar xvfz virtualenv-1.10.tar.gz
+python virtualenv-1.10/virtualenv.py env
 
 # install boto and paramiko in the virtual environment
 env/bin/pip install boto

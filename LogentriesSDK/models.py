@@ -44,7 +44,7 @@ class Log(object):
 		self._token = log_data['token'] if 'token' in log_data else None
 
 	def get_key(self):
-		return self._account_key
+		return self._key
 
 	def set_value(self,attr,value):
 		attr = value
