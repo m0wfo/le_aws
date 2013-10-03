@@ -1,0 +1,8 @@
+*.pyc
+*~
+.project
+.pydevproject
+env/*
+.DS_Store
+.settings/*
+.vagrant
