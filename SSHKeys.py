@@ -80,7 +80,10 @@ class ssh_keys:
         Args:
         key_name is the name of the key, incuding its extension, e.g. my_key.pem
         """
-        key_full_path = '%s%s%s'%(path,key_name,'.pem')
+        clean_path = path
+        if not clean_path.endswith('/'):
+            clean_path = clean_path+'/' 
+        key_full_path = '%s%s%s'%(clean_path,key_name,'.pem')
         print os.path.expanduser(key_full_path)
         if os.path.isfile(os.path.expanduser(key_full_path)):
             return key_full_path

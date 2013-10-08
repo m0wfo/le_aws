@@ -16,7 +16,7 @@ class Instance(object):
    Instance class representing physical EC2 instances. Instance objects contain information about connecting to the corresponding EC2 instance, e.g. ip address, ssh key filename, username, etc, as well as information about the logging configuration associated to them. This logging configuration must comply to filters that are also attribute of this class. 
    """
 
-   def __init__(self,instance_id,ssh_key_name=None,ip_address=None,port=None,logs=[],filters=['/var/log/'],log_conf=None,platform=None, username=None, name=None):
+   def __init__(self,instance_id,ssh_key_name=None,ip_address=None,port=None,logs=[],filters=['/var/log/'],log_filter='/var/log/.*log',log_conf=None,platform=None, username=None, name=None):
       """
       Args:
       instance_id represents a unique identifier for this instance
@@ -38,6 +38,7 @@ class Instance(object):
       self._name = name if name else instance_id
       self._logs = logs
       self._log_conf = log_conf
+      self._log_filter = log_filter
       self._filters = filters
       self._platform = platform
 
@@ -85,6 +86,13 @@ class Instance(object):
       Sets the log file path filters to filters
       """
       self._filters = filters
+
+   def set_log_filter(self,log_filter):
+      """
+      Args: log_filter is a regular expression on the path where to consider log files.
+      Sets the log file path filter to log_filter
+      """
+      self._log__filter = log_filter
 
    def set_ip_address(self,ip_address):
       """
@@ -162,12 +170,20 @@ class Instance(object):
       """
       return self._filters
 
+   def get_log_filter(self):
+      """
+      Returns the log file path filter
+      """
+      return self._log_filter
+
+
    def get_ssh_config_entry(self):
       result = 'Host %s\n'%self.get_instance_id()
       result = result + '\tHostName %s\n'%self.get_ip_address()
       if self.get_username() is not None:
          result = result + '\tUser %s\n'%self.get_username()
       result = result + '\tIdentityFile %s\n'%self.get_ssh_key_name()
+      result = result + '\tLogFilter %s\n'%self.get_log_filter()
       result = result + '\n'
       return result
 
@@ -301,7 +317,7 @@ class RemoteInstance(Instance):
          tmp_file_name = '/tmp/log_list.txt'
          chan = ssh.get_transport().open_session()
          chan.get_pty()
-         chan.exec_command("sudo find %s -type f -regex '%s' > %s"%(path,log_filter,tmp_file_name))
+         chan.exec_command("sudo find %s -type f -regex '%s' > %s"%(path,self.get_log_filter(),tmp_file_name))
          if chan.recv_stderr_ready():
             error_msg = chan.recv_stderr(1024)
             print error_msg
