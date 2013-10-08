@@ -161,6 +161,14 @@ class Instance(object):
       """
       return self._filters
 
+   def get_ssh_config_entry(self):
+      result = 'Host %s\n'%self.get_instance_id()
+      result = result + '\tHostName %s\n'%self.get_ip_address()
+      if self.get_username() is not None:
+         result = result + '\tUser %s\n'%self.get_username()
+      result = result + '\tIdentityFile %s\n'%self.get_ssh_key_name()
+      result = result + '\n'
+      return result
 
    @staticmethod
    def load_instance_data(i):
