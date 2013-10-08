@@ -50,6 +50,13 @@ class AWSConfFile(object):
             logger.error('%s missing in %s','account_key',filename)
             self._account_key = None
 
+         if 'filters' in conf_json:
+            self._filters = conf_json['filters']
+         else:
+            print '%s missing in %s'%('filters',filename)
+            logger.error('%s missing in %s','filters',filename)
+            self._filters = []
+
          if 'ec2_filters' in conf_json:
             self._ec2_filters = [EC2Filter.load_json(ec2_filter_raw) for ec2_filter_raw in conf_json['ec2_filters']]
          else:
@@ -113,6 +120,12 @@ class AWSConfFile(object):
 
    def get_ec2_filters(self):
       return self._ec2_filters
+
+   def set_filters(self,filters):
+      self._filters = filters
+
+   def get_filters(self):
+      return self._filters
 
    def set_log_filters(self,log_filters):
       self._log_filters = log_filters
@@ -283,7 +296,7 @@ class AWS_Client(object):
       local_keys is a dictionnary mapping ssh key names to their location.
       ec2_instance is a Boto instance object.
       """
-      if local_keys[ec2_instance.key_name] is not None:
+      if ec2_instance.key_name is not None and ec2_instance.key_name in local_keys:
          if ec2_instance.platform is None:
             print 'Platform is Linux for instance with id=%s and can be ssh-ed!'%ec2_instance.id
             logger.info('Platform is Linux for instance with id=%s and can be ssh-ed!',ec2_instance.id)
@@ -302,7 +315,7 @@ class AWS_Client(object):
          else:
             username = None
          return Instance.RemoteInstance(instance_id=ec2_instance.id,ssh_key_name=local_keys[ec2_instance.key_name],ip_address=ec2_instance.ip_address,name=name,platform=platf,username=username)
-
+      return None
 
    def refresh_instance(self,local_keys,ec2_instance,log_filter=None):
       """ """
@@ -424,7 +437,7 @@ class AWS_Client(object):
 
 
 
-   def load_instance_ssh_attributes(self,local_keys,ec2_instance,log_filter=None):
+   def load_instance_ssh_attributes(self,local_keys,ec2_instance,log_filter='/var/log/.*log'):
       """
       
       """
@@ -436,6 +449,10 @@ class AWS_Client(object):
 
       instance = self.get_instance(local_keys,ec2_instance)
       
+      if instance is None:
+         return None
+
+      instance.set_log_filter(log_filter)
       if instance.get_username() is None:
          usernames = self.get_aws_conf().get_usernames()
       else:
@@ -500,14 +517,17 @@ class AWS_Client(object):
                   key_names = [key_pair.name for key_pair in key_pairs]
                   ssh_k = SSHKeys.ssh_keys(paths=self.get_aws_conf().get_ssh_key_paths(),names=key_names)
                   local_keys = ssh_k.get_keys_onpaths(ssh_k.get_paths(),ssh_k.get_names())
-                  
-                  instances = con.get_only_instances()
+
+                  for _filter in self.get_aws_conf().get_filters():
+                     ec2_filter = (_filter['ec2_filter'] if 'ec2_filter' in _filter else None)
+                     log_filter = (_filter['log_filter'] if 'log_filter' in _filter else '/var/log/.*log')
+                  instances = con.get_only_instances(filters=ec2_filter)
                   for ec2_instance in instances:
                      if ec2_instance.state != 'running':
                         print 'Instance %s is not running, state=%s'%(ec2_instance.id,ec2_instance.state)
                         logger.info('Instance %s is not running, state=%s',ec2_instance.id,ec2_instance.state)
                         continue
-                     instance = self.load_instance_ssh_attributes(local_keys,ec2_instance)
+                     instance = self.load_instance_ssh_attributes(local_keys,ec2_instance,log_filter)
                      if instance is not None:
                         ssh_config.write(instance.get_ssh_config_entry())
                   con.close()
