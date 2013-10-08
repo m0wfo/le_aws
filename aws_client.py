@@ -292,6 +292,7 @@ class AWS_Client(object):
             platf = ec2_instance.platform
             print 'Platform is %s for instance with id=%s'%(platf,ec2_instance.id)
             logger.info('Platform is %s for instance with id=%s',platf,ec2_instance.id)
+            return None
          if 'Name' in ec2_instance.tags:
             name = ec2_instance.tags['Name']
          else:
@@ -423,3 +424,99 @@ class AWS_Client(object):
 
 
 
+   def load_instance_ssh_attributes(self,local_keys,ec2_instance,log_filter=None):
+      """
+      
+      """
+      sudo_user = None
+      if ec2_instance.platform == 'windows':
+         print 'No attempt to ssh instance %s as its platform is %s'%(ec2_instance.id,ec2_instance.platform)
+         logger.info('No attempt to ssh instance %s as its platform is %s',ec2_instance.id,ec2_instance.platform)
+         return None
+
+      instance = self.get_instance(local_keys,ec2_instance)
+      
+      if instance.get_username() is None:
+         usernames = self.get_aws_conf().get_usernames()
+      else:
+         usernames = [instance.get_username()]
+      for username in usernames:
+         print 'Checking if %s has sudo privileges on %s '%(username,instance.get_instance_id())
+         logger.debug('Checking if %s has sudo privileges on %s ',username,instance.get_instance_id())
+         key_filename = os.path.expanduser(instance.get_ssh_key_name())
+         try:
+             ssh = paramiko.SSHClient()
+             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+             ssh.connect(ec2_instance.ip_address, username=username, key_filename=key_filename)
+             stdin, stdout, stderr = ssh.exec_command('sudo whoami',get_pty=True)
+         except paramiko.SSHException as e:
+            print 'Connection to %s with user %s and ssh key %s failed. %s'%(instance.get_ip_address(),username,key_filename,e)
+            logger.warning('Connection to %s with user %s and ssh key %s failed. %s',instance.get_ip_address(),username,key_filename,e)
+            continue
+         except socket.error as e1:
+            print 'Connection to %s with user %s and ssh key %s failed. %s'%(instance.get_ip_address(),username,key_filename,e1)
+            logger.warning('Connection to %s with user %s and ssh key %s failed. %s',instance.get_ip_address(),username,key_filename,e1)
+            continue
+
+         stdout=stdout.readlines()
+         stderr=stderr.readlines()
+         print 'stdout: %s'%stdout
+         print 'stderr: %s'%stderr
+         logger.debug('Checking if %s has sudo privileges on %s ',username,instance.get_instance_id())
+         for line in stdout:
+            if line.startswith('root'):
+               sudo_user = username
+               print 'sudo found: %s'%username
+               logger.debug('sudo found, username=%s, instance=%s',username,instance.get_instance_id())
+               break
+         if sudo_user is not None:
+            break
+      # Update instance information with username, log paths and current log config
+      instance.set_username(sudo_user)
+      return instance
+
+
+   def aws_create_ssh_config(self,filename='ssh_config'):
+      """
+      This function generates an ssh_config file saved at 'filename' with information about running ec2 instances that can be ssh-ed.
+      """
+      try:
+         ssh_config = open(filename, 'w')
+      except IOError as e:
+         logger.info('Could not open aws configuration file, filename=%s, error=%s',filename,e.message)
+         return None
+      regions_info = boto.ec2.regions()
+      for region in [boto.ec2.get_region(region_info.name) for region_info in regions_info]:
+          print region
+          logger.info('Region=%s',region)
+          con = boto.ec2.connection.EC2Connection(aws_access_key_id=self.get_aws_conf().get_aws_access_key_id(), aws_secret_access_key=self.get_aws_conf().get_aws_secret_access_key(),region=region)
+          if con is not None:
+              try:
+                  key_pairs = con.get_all_key_pairs()
+              except boto.exception.EC2ResponseError as e:
+                  print e.message
+                  logger.error('Exception raised, message=%s',e.message)
+              else:
+                  key_names = [key_pair.name for key_pair in key_pairs]
+                  ssh_k = SSHKeys.ssh_keys(paths=self.get_aws_conf().get_ssh_key_paths(),names=key_names)
+                  local_keys = ssh_k.get_keys_onpaths(ssh_k.get_paths(),ssh_k.get_names())
+                  
+                  instances = con.get_only_instances()
+                  for ec2_instance in instances:
+                     if ec2_instance.state != 'running':
+                        print 'Instance %s is not running, state=%s'%(ec2_instance.id,ec2_instance.state)
+                        logger.info('Instance %s is not running, state=%s',ec2_instance.id,ec2_instance.state)
+                        continue
+                     instance = self.load_instance_ssh_attributes(local_keys,ec2_instance)
+                     if instance is not None:
+                        ssh_config.write(instance.get_ssh_config_entry())
+                  con.close()
+      ssh_config.close()
+      return ssh_config
+
+
+if __name__ == '__main__':
+   # Open the updated version of the aws config file
+   aws_conf = AWSConfFile('aws.json')
+   aws_client = AWS_Client(aws_conf)
+   aws_client.aws_create_ssh_config()
