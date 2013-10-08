@@ -1,4 +1,5 @@
 import json
+import fabric
 
 import LogentriesSDK.models
 from ConfigFile import LoggingConfFile
