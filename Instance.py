@@ -2,7 +2,6 @@ import json
 import fabric
 
 import LogentriesSDK.models
-from ConfigFile import LoggingConfFile
 
 import logging
 logging.basicConfig(filename='logentries_setup.log',level=logging.DEBUG)
