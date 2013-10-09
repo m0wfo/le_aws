@@ -150,6 +150,9 @@ class LoggingConfFile:
    def set_polling_period(polling_period):
       self._polling_period = polling_period
 
+   def get_instance_logs(self):
+      return self._instance_logs
+
    def set_instance_logs(instance_logs):
       self._instance_logs = instance_logs
 
