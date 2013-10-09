@@ -2,6 +2,7 @@ from LogentriesSDK.exception import InvalidAccountKeyException, InvalidParameter
 import LogentriesSDK.constants as constants
 import LogentriesSDK.models as models
 
+import os
 """
 Some helper methods used by the SDK
 """
