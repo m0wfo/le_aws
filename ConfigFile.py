@@ -234,12 +234,12 @@ class LoggingConfFile:
          self._polling_period = conf_data['polling_period']
 
    @staticmethod
-   def load_file(conf_file):
+   def load_file(conf_file,instance_id):
       """
       """
       filename = conf_file.name
       log_conf = LoggingConfFile(name=filename)
-      host = Host(name=filename)
+      host = Host(name=instance_id)
       logs = []
       for line in conf_file.readlines():
          if line.startswith('#LOGENTRIES_MODEL:'):
@@ -305,7 +305,7 @@ class LoggingConfFile:
 
    def to_json(self):
       """ """
-      result = {"name":self.get_name(),"conf_format":self.get_format(),"instance_logs": [instance_log.to_json() for instance_log in self.get_instance_logs()],"host":(None if self.get_host() is None else self.get_host().to_json()),"polling_period":self.get_polling_period()}
+      return {"name":self.get_name(),"conf_format":self.get_format(),"instance_logs": [instance_log.to_json() for instance_log in self.get_instance_logs()],"host":(None if self.get_host() is None else self.get_host().to_json()),"polling_period":self.get_polling_period()}
 
       
 if __name__ == '__main__':
