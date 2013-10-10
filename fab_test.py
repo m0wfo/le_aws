@@ -4,6 +4,7 @@ from paramiko.config import SSHConfig
 import LogentriesSDK.client as LogClient 
 import ConfigFile
 
+import os
 import json
 import logging
 logging.basicConfig(filename='logentries_setup.log',level=logging.DEBUG)
@@ -31,7 +32,7 @@ else:
     account_key = None
     print 'Could not retrieve logentries account key from json in logentries.json'
     logger.error('Could not retrieve logentries account key from json in logentries.json')
-print 'account_key=%s'%account_key
+
 
 def print_host_string():
     for item in env.host_string:
@@ -77,56 +78,67 @@ def get_ssh_config(host_name):
     return None,{}
 
 
-def get_instance_log_path():
-    # Retrieve log file paths
+def get_instance_log_paths(ssh_config):
+    """
+    """
     log_paths = []
-    print env.host
-    _,ssh_config = get_ssh_config(env.host)
-    print ssh_config
+    # Retrieve log filter if defined in ssh_config file. Else apply default filter.
     if 'logfilter' in ssh_config:
         log_filter = ssh_config['logfilter']
     else:
         log_filter = '^/var/log/.*log'
-    print log_filter
+
+    # Retrieve log file paths that match the log filter
     result = sudo("find / -type f -regex '%s'"%(log_filter))
-    print result.stdout
+
+    # Clean output
     log_paths.extend([logpath.replace('\r','') for logpath in result.stdout.split('\n')])
-    print 'Log Paths: %s'%log_paths
     logger.info('Log Paths: %s',log_paths)
     return log_paths
 
 
-def get_instance_log_conf():
+def get_instance_log_conf(instance_id):
     """
-    Returns the 
+    Returns the remote logging configuration or None if the remote configuration does not exist. 
     """
-    # Retrieve current log config
-    log_conf = None
-    instance_id,_ = get_ssh_config(env.host)
-    filename = 'logentries_%s.conf'%instance_id
+    # Retrieve current log config file
     log_conf_file = None
+
+    filename = 'logentries_%s.conf'%instance_id
     rsyslog_conf_name = '/etc/rsyslog.d/%s'%filename
     local_conf_name = '/tmp/%s'%filename
+    
+    # Clean file present
     try:
         local('rm %s'%local_conf_name)
     except:
         print 'Could not remove %s. It may not exist'%(local_conf_name)
         logger.warning('Could not remove %s. It may not exist'%(local_conf_name))
+    # Get remote conf file or return None if it cannot be retrieved
     try:
         get(rsyslog_conf_name,local_conf_name)
     except:
         print '%s does not exist on instance %s'%(rsyslog_conf_name,instance_id)
         logger.warning('%s does not exist on instance %s',rsyslog_conf_name,instance_id)
+        return None
+    # Open conf file or return None if it cannot be opened
     try:
         log_conf_file = open(local_conf_name,'rw')
     except:
         print 'Cannot open %s from instance %s'%(local_conf_name,instance_id)
         logger.warning('Cannot open %s from instance %s',local_conf_name,instance_id)
+        return None
+    return log_conf_file
+
+
+def load_conf_file(log_conf_file):
+    """
+    """
+    log_conf = None
+    # conf file or return None if it cannot be opened
     if log_conf_file != None:
-        log_conf = ConfigFile.LoggingConfFile.load_file(log_conf_file,filename)
-        # Set the configuration file name
-        log_conf.set_name(local_conf_name)
-        log_conf.save()
+        log_conf = ConfigFile.LoggingConfFile.load_file(log_conf_file)
+        log_conf_file.close()
     return log_conf
 
 
@@ -174,23 +186,9 @@ def update_instance_conf(log_paths, log_conf):
     return log_conf
 
 
-def deploy_log_conf(log_conf):
-    if log_conf is None:
-        print 'No RSyslog Configuration File was generated'
-        logger.warning('No RSyslog Configuration File was generated')
-        return
-    # Save log config in a file and retrieve its name
-    instance_id, config = get_ssh_config(env.host)
-    local_file_name = log_conf.get_name()
-    filename = local_file_name.rsplit('/')[0]
-    rsyslog_conf_name = '/etc/rsyslog.d/%s'%filename
-    
-    try:
-        put(local_file_name,rsyslog_conf_name,use_sudo=True)
-    except:
-        print 'Transfering %s to remote %s Failed'%(local_file_name,rsyslog_conf_name)
-        logger.error('Transfering %s to remote %s Failed',local_file_name,rsyslog_conf_name)
-        return
+def restart_rsyslog(instance_id):
+    """
+    """
     try:
         sudo('service rsyslog restart')
     except:
@@ -199,7 +197,38 @@ def deploy_log_conf(log_conf):
         except:
             print 'Rsyslog could not be restarted on %s'%instance_id
             logger.error('Rsyslog could not be restarted on %s',instance_id)
-            return
+    return
+
+
+def deploy_log_conf(log_conf):
+    """
+    """
+
+    if log_conf is None:
+        print 'No RSyslog Configuration File was generated for instance %s.'%instance_id
+        logger.warning('No RSyslog Configuration File was generated for instance %s.',instance_id)
+        return
+
+    # Get current instance information
+    local_conf_name = log_conf.get_name()
+
+    # Save configuration in a file
+    log_conf_file = log_conf.save()
+    print log_conf_file
+    filename = os.path.basename(log_conf_file)
+    log_conf_file.close()
+
+    remote_conf_name = '/etc/rsyslog.d/%s'%filename
+    
+    try:
+        put(local_file_name,remote_conf_name,use_sudo=True)
+    except:
+        print 'Transfering %s to remote %s Failed'%(local_file_name,remote_conf_name)
+        logger.error('Transfering %s to remote %s Failed',local_file_name,remote_conf_name)
+        return
+
+    # Restart Rsyslog
+    restart_rsyslog(instance_id)  
     print 'Rsyslog restarted successfully on %s'%instance_id
     logger.info('Rsyslog restarted successfully on %s',instance_id)
     return
@@ -207,13 +236,22 @@ def deploy_log_conf(log_conf):
 
 
 def sync():
-    log_paths = get_instance_log_path()
+    # Get current instance information
+    instance_id, ssh_config = get_ssh_config(env.host)
+
+    log_paths = get_instance_log_paths(ssh_config)
     print 'LOG_PATHS: %s'%log_paths
     logger.info('LOG_PATHS: %s'%log_paths)
 
-    log_conf = get_instance_log_conf()
-    print 'LOG_CONF_INIT: %s'%log_conf.to_json()
-    logger.info('LOG_CONF_INIT: %s'%log_conf.to_json())
+    log_conf_file = get_instance_log_conf(instance_id)
+    log_conf = load_conf_file(log_conf_file)
+    if log_conf is not None:
+        print 'LOG_CONF_INIT: %s'%log_conf.to_json()
+        logger.info('LOG_CONF_INIT: %s'%log_conf.to_json())
+    else:
+        print 'LOG_CONF_INIT: None'
+        logger.info('LOG_CONF_INIT: None')
+
 
     log_conf = update_instance_conf(log_paths,log_conf)
     if log_conf is not None:
@@ -222,8 +260,10 @@ def sync():
     else:
         print 'LOG_CONF_UPDATED: None'
         logger.info('LOG_CONF_UPDATED: None')
+        return
 
     deploy_log_conf(log_conf)
+    restart_rsyslog(instance_id)
 
 if __name__ == "__main__":
     env.use_ssh_config = True
