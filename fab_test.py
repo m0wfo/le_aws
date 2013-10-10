@@ -1,5 +1,6 @@
 from fabric.api import *
 from paramiko.config import SSHConfig
+from logentries import LogentriesHandler
 
 import LogentriesSDK.client as LogClient 
 import ConfigFile
@@ -11,7 +12,9 @@ logging.basicConfig(filename='logentries_setup.log',level=logging.DEBUG)
 # create logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-
+# TODO: use the logentries.json file to retrieve this token
+log_handler = LogentriesHandler('2de80254-62bb-4ea3-9437-b79f6c20d314')
+logger.addHandler(log_handler)
 
 try:
     account_key_file = open('logentries.json','r')
@@ -123,7 +126,7 @@ def get_instance_log_conf(instance_id):
         return None
     # Open conf file or return None if it cannot be opened
     try:
-        log_conf_file = open(local_conf_name,'rw')
+        log_conf_file = open(local_conf_name,'r')
     except:
         print 'Cannot open %s from instance %s'%(local_conf_name,instance_id)
         logger.warning('Cannot open %s from instance %s',local_conf_name,instance_id)
@@ -131,13 +134,13 @@ def get_instance_log_conf(instance_id):
     return log_conf_file
 
 
-def load_conf_file(log_conf_file):
+def load_conf_file(log_conf_file,instance_id):
     """
     """
     log_conf = None
     # conf file or return None if it cannot be opened
     if log_conf_file != None:
-        log_conf = ConfigFile.LoggingConfFile.load_file(log_conf_file)
+        log_conf = ConfigFile.LoggingConfFile.load_file(log_conf_file,instance_id)
         log_conf_file.close()
     return log_conf
 
@@ -190,13 +193,20 @@ def restart_rsyslog(instance_id):
     """
     """
     try:
-        sudo('service rsyslog restart')
+        output = sudo('service rsyslog restart')
     except:
         try:
             sudo('/etc/init.d/rsyslog restart')
         except:
             print 'Rsyslog could not be restarted on %s'%instance_id
             logger.error('Rsyslog could not be restarted on %s',instance_id)
+    print output.succeeded
+    if output.succeeded:
+        print 'Rsyslog restarted successfully %s'%instance_id
+        logger.info('Rsyslog restarted successfully %s',instance_id)
+    else:
+        print 'Error restarting Rsyslog: %s'%output.stdout
+        logger.error('Error restarting Rsyslog: %s',output.stdout)
     return
 
 
@@ -215,22 +225,17 @@ def deploy_log_conf(log_conf):
     # Save configuration in a file
     log_conf_file = log_conf.save()
     print log_conf_file
-    filename = os.path.basename(log_conf_file)
+    filename = os.path.basename(log_conf_file.name)
     log_conf_file.close()
 
     remote_conf_name = '/etc/rsyslog.d/%s'%filename
     
     try:
-        put(local_file_name,remote_conf_name,use_sudo=True)
+        put(local_conf_name,remote_conf_name,use_sudo=True)
     except:
-        print 'Transfering %s to remote %s Failed'%(local_file_name,remote_conf_name)
-        logger.error('Transfering %s to remote %s Failed',local_file_name,remote_conf_name)
+        print 'Transfering %s to remote %s Failed'%(local_conf_name,remote_conf_name)
+        logger.error('Transfering %s to remote %s Failed',local_conf_name,remote_conf_name)
         return
-
-    # Restart Rsyslog
-    restart_rsyslog(instance_id)  
-    print 'Rsyslog restarted successfully on %s'%instance_id
-    logger.info('Rsyslog restarted successfully on %s',instance_id)
     return
 
 
@@ -244,7 +249,9 @@ def sync():
     logger.info('LOG_PATHS: %s'%log_paths)
 
     log_conf_file = get_instance_log_conf(instance_id)
-    log_conf = load_conf_file(log_conf_file)
+    print log_conf_file.name
+    log_conf = load_conf_file(log_conf_file,instance_id)
+    print log_conf
     if log_conf is not None:
         print 'LOG_CONF_INIT: %s'%log_conf.to_json()
         logger.info('LOG_CONF_INIT: %s'%log_conf.to_json())
@@ -263,7 +270,8 @@ def sync():
         return
 
     deploy_log_conf(log_conf)
-    restart_rsyslog(instance_id)
+    # Restart Rsyslog
+    restart_rsyslog(instance_id)  
 
 if __name__ == "__main__":
     env.use_ssh_config = True
