@@ -192,9 +192,10 @@ class LoggingConfFile:
    def save(self):
       """ """
       if self.get_format() == 'rsyslog':
-         self.save_rsyslog_conf()
+         return self.save_rsyslog_conf()
       else:
          print '%s is not a valid output type'%(self.get_format())
+         return None
 
    def save_rsyslog_conf(self):
       """ """
@@ -216,7 +217,7 @@ class LoggingConfFile:
       conf_file.write(self.get_poll_rsyslog_conf())
       conf_file.write(templates)
       conf_file.write(self.to_model_rep())
-      conf_file.close()
+      return conf_file
 
 
    # Check if this is called and add code for instance_logs if it is
@@ -233,9 +234,10 @@ class LoggingConfFile:
          self._polling_period = conf_data['polling_period']
 
    @staticmethod
-   def load_file(conf_file,filename):
+   def load_file(conf_file):
       """
       """
+      filename = conf_file.name
       log_conf = LoggingConfFile(name=filename)
       host = Host(name=filename)
       logs = []
@@ -267,7 +269,7 @@ class LoggingConfFile:
       """
       # Open configuration file
       conf_file = open(filename,'r')
-      return load_file(conf_file,filename)
+      return load_file(conf_file)
 
    def create_rsyslog_entry(self,log,index):
       """ 
