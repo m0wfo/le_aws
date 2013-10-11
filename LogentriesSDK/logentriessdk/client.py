@@ -43,11 +43,11 @@ import sys
 #
 # Le Modules
 #
-from LogentriesSDK.connection import LogentriesConnection 
-from LogentriesSDK.exception import InvalidParametersException, InvalidLogSourceException
-import LogentriesSDK.constants as constants
-import LogentriesSDK.helpers as helpers
-import LogentriesSDK.models as models
+from logentriessdk.connection import LogentriesConnection 
+from logentriessdk.exception import InvalidParametersException, InvalidLogSourceException
+import logentriessdk.constants as constants
+import logentriessdk.helpers as helpers
+import logentriessdk.models as models
 import inspect
 
 class Client(object):

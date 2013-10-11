@@ -1,6 +1,6 @@
 import socket, httplib, urllib
-from LogentriesSDK.exception import InvalidServerResponse, MissingModuleException
-import LogentriesSDK.constants as constants
+from logentriessdk.exception import InvalidServerResponse, MissingModuleException
+import logentriessdk.constants as constants
 
 try:
 	import ssl
