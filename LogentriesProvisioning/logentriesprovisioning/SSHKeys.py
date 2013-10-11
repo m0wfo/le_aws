@@ -84,7 +84,6 @@ class ssh_keys:
         if not clean_path.endswith('/'):
             clean_path = clean_path+'/' 
         key_full_path = '%s%s%s'%(clean_path,key_name,'.pem')
-        print os.path.expanduser(key_full_path)
         if os.path.isfile(os.path.expanduser(key_full_path)):
             return key_full_path
         return None

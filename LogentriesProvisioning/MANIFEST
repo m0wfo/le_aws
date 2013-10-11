@@ -3,11 +3,12 @@ CHANGES.txt
 README.txt
 setup.py
 bin/aws_client.py
-bin/logentries.py
+bin/sync_log.py
 logentriesprovisioning/ConfigFile.py
 logentriesprovisioning/Instance.py
 logentriesprovisioning/SSHKeys.py
 logentriesprovisioning/__init__.py
+logentriesprovisioning/constants.py
 logentriesprovisioning/location.py
 logentriesprovisioning/utils.py
 logentriesprovisioning/test/__init__.py

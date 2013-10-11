@@ -5,6 +5,7 @@ import boto.manage.cmdshell
 
 import json
 import os
+import sys
 import socket
 
 from logentriesprovisioning import Instance
@@ -12,11 +13,6 @@ from logentriesprovisioning import SSHKeys
 import logentriessdk.client as LogClient 
 from logentriesprovisioning import ConfigFile
 
-import logging
-logging.basicConfig(filename='logentries_setup.log',level=logging.DEBUG)
-# create logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 class AWSConfFile(object):
 
@@ -44,8 +40,6 @@ class AWSConfFile(object):
          if 'account_key' in conf_json:
             self._account_key = conf_json['account_key']
          else:
-            print '%s missing in %s'%('account_key',filename)
-            logger.error('%s missing in %s','account_key',filename)
             self._account_key = None
 
          if 'filters' in conf_json:
@@ -58,15 +52,11 @@ class AWSConfFile(object):
          if 'ec2_filters' in conf_json:
             self._ec2_filters = [EC2Filter.load_json(ec2_filter_raw) for ec2_filter_raw in conf_json['ec2_filters']]
          else:
-            print '%s missing in %s'%('ec2_filters',filename)
-            logger.error('%s missing in %s','ec2_filters',filename)
             self._ec2_filters = []
 
          if 'log_filters' in conf_json:
             self._log_filters = [LogFilter.load_json(log_filter_raw) for log_filter_raw in conf_json['log_filters']]
          else:
-            print '%s missing in %s'%('log_filters',filename)
-            logger.error('%s missing in %s','log_filters',filename)
             self._log_filters = {}
 
          if secret_key in conf_json:
@@ -86,25 +76,18 @@ class AWSConfFile(object):
          if 'ssh_key_paths' in conf_json:
             self._ssh_key_paths = conf_json['ssh_key_paths']
          else:
-            print 'ssh_key_paths missing in %s'%(filename)
+            print 'ssh key paths missing in %s'%(filename)
             logger.error('ssh_key_paths missing in %s',filename)
             self._ssh_key_paths = None
 
          if 'ssh_keys' in conf_json:
             self._ssh_keys = conf_json['ssh_keys']
          else:
-            print 'ssh_keys missing in %s'%(filename)
-            logger.error('ssh_keys missing in %s',filename)
             self._ssh_keys = None
 
          if 'instances' in conf_json:
             self._instances = []
-            #for instance in conf_json['instances']:
-            #   instance2 = Instance.Instance.load_aws_data(instance)
-            #   self._instances.append(instance2)
          else:
-            print 'instances missing in %s'%(filename)
-            logger.error('instances missing in %s',filename)
             self._instances = None
 
    def set_name(self,name):
@@ -215,7 +198,6 @@ class AWSConfFile(object):
       for k in range(0,len(self.get_instances())):
          i = self.get_instances()[k]
          if i is None:
-             print 'Error. Instance is None, id=%s'%aws_id
              logger.error('Error. Instance is None, id=%s',aws_id)
          if i.get_instance_id() == aws_id:
             self._instances[k] = instance
@@ -315,125 +297,6 @@ class AWS_Client(object):
          return Instance.RemoteInstance(instance_id=ec2_instance.id,ssh_key_name=local_keys[ec2_instance.key_name],ip_address=ec2_instance.ip_address,name=name,platform=platf,username=username)
       return None
 
-   def refresh_instance(self,local_keys,ec2_instance,log_filter=None):
-      """ """
-      # If log_filter is not defined, set it to a regex corresponding to its path ending with 'log'
-      if log_filter == None:
-         log_filter = '.*log'
-
-      if ec2_instance.platform == 'windows':
-         print 'No attempt to ssh instance %s as its platform is %s'%(ec2_instance.id,ec2_instance.platform)
-         logger.info('No attempt to ssh instance %s as its platform is %s',ec2_instance.id,ec2_instance.platform)
-         return None
-
-      instance = self.get_aws_conf().get_instance_with_id(ec2_instance.id)
-      if instance is None:
-         instance = self.get_instance(local_keys,ec2_instance)
-      
-      if instance.get_username() is None:
-         usernames = self.get_aws_conf().get_usernames()
-      else:
-         usernames = [instance.get_username()]
-      for username in usernames:
-         key_filename = os.path.expanduser(instance.get_ssh_key_name())
-         try:
-             ssh = paramiko.SSHClient()
-             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-             ssh.connect(ec2_instance.ip_address, username=username, key_filename=key_filename)
-             #ssh = boto.manage.cmdshell.sshclient_from_instance(ec2_instance,key_filename,user_name=username)
-         except paramiko.SSHException as e:
-             print 'Connection to %s with user %s and ssh key %s failed. %s'%(instance.get_ip_address(),username,key_filename,e)
-             logger.warning('Connection to %s with user %s and ssh key %s failed. %s',instance.get_ip_address(),username,key_filename,e)
-             continue
-         except socket.error as e1:
-             print 'Connection to %s with user %s and ssh key %s failed. %s'%(instance.get_ip_address(),username,key_filename,e1)
-             logger.warning('Connection to %s with user %s and ssh key %s failed. %s',instance.get_ip_address(),username,key_filename,e1)
-             continue
-         # Retrieve log file paths
-         log_paths = []
-         for path in instance.get_filters():
-             tmp_file_name = '/tmp/log_list.txt'
-             chan = ssh.get_transport().open_session()
-             chan.get_pty()
-             chan.exec_command("sudo find %s -type f -regex '%s' > %s"%(path,log_filter,tmp_file_name))
-             if chan.recv_stderr_ready():
-                error_msg = chan.recv_stderr(1024)
-                print error_msg
-                logger.error('Could not retrieve log file locations, error=%s',error_msg)
-             #stdin, stdout, stderr = 
-             try:
-                 f = ssh.open_sftp().open(tmp_file_name)
-             except IOError as e:
-                 print 'Could not open %s. %s'%(tmp_file_name,e.message)
-                 logger.error('Could not open %s. %s',tmp_file_name,e.message)
-             log_paths.extend([logpath.split('\n')[0] for logpath in f.readlines()])
-         print 'Log Paths: %s'%log_paths
-         logger.info('Log Paths: %s',log_paths)
-         # Remove the remote tmp file
-         _, _, stderr = ssh.exec_command('rm %s'%tmp_file_name)
-         if stderr != '':
-            print 'Error while removing temporary file /tmp/log_list.txt on %s. %s'%(instance.get_ip_address(),stderr.read())
-            logger.error('Error while removing temporary file /tmp/log_list.txt on %s. %s',instance.get_ip_address(),stderr.read())
-
-         # Retrieve current log config
-         filename = 'logentries_%s.conf'%instance.get_instance_id()
-         log_conf = None
-         log_conf_file = None
-         #if ssh.exists('/etc/rsyslog.d/%s'%filename):
-         rsyslog_conf_name = '/etc/rsyslog.d/%s'%filename
-         try:
-             log_conf_file = ssh.open_sftp().open(rsyslog_conf_name)
-         except:
-             print 'Cannot open %s on remote instance %s'%(rsyslog_conf_name,instance.get_instance_id())
-             logger.warning('Cannot open %s on remote instance %s',rsyslog_conf_name,instance.get_instance_id())
-         if log_conf_file != None:
-             log_conf = ConfigFile.LoggingConfFile.load_file(log_conf_file,filename)
-             # Set the configuration file name
-             log_conf.set_name(filename)
-
-         # Update instance information with username, log paths and current log config
-         instance.set_username(username)
-         instance.set_logs([log_path for log_path in log_paths])
-         instance.set_log_conf(log_conf)
-         break
-      return instance
-
-
-   def aws_refresh(self):
-      """
-      This function updates information about running aws ec2 instances and the log files that they contain.
-      """
-      regions_info = boto.ec2.regions()
-      for region in [boto.ec2.get_region(region_info.name) for region_info in regions_info]:
-          print region
-          logger.info('Region=%s',region)
-          con = boto.ec2.connection.EC2Connection(aws_access_key_id=self.get_aws_conf().get_aws_access_key_id(), aws_secret_access_key=self.get_aws_conf().get_aws_secret_access_key(),region=region)
-          if con is not None:
-              try:
-                  key_pairs = con.get_all_key_pairs()
-              except boto.exception.EC2ResponseError as e:
-                  print e.message
-                  logger.error('Exception raised, message=%s',e.message)
-              else:
-                  key_names = [key_pair.name for key_pair in key_pairs]
-                  ssh_k = SSHKeys.ssh_keys(paths=self.get_aws_conf().get_ssh_key_paths(),names=key_names)
-                  local_keys = ssh_k.get_keys_onpaths(ssh_k.get_paths(),ssh_k.get_names())
-                  
-                  reservations = con.get_all_instances()
-                  for reservation in reservations:
-                      for ec2_instance in reservation.instances:
-                          if ec2_instance.state != 'running':
-                              print 'Instance %s is not running, state=%s'%(ec2_instance.id,ec2_instance.state)
-                              logger.info('Instance %s is not running, state=%s',ec2_instance.id,ec2_instance.state)
-                              continue
-                          instance = self.refresh_instance(local_keys,ec2_instance)
-                          if instance is not None:
-                              self.get_aws_conf().set_instance(ec2_instance.id,instance)
-                              self.add_ec2_instance(ec2_instance)
-                  con.close()
-      self.get_aws_conf().save()
-
-
 
    def load_instance_ssh_attributes(self,local_keys,ec2_instance,log_filter='/var/log/.*log'):
       """
@@ -456,7 +319,6 @@ class AWS_Client(object):
       else:
          usernames = [instance.get_username()]
       for username in usernames:
-         print 'Checking if %s has sudo privileges on %s '%(username,instance.get_instance_id())
          logger.debug('Checking if %s has sudo privileges on %s ',username,instance.get_instance_id())
          key_filename = os.path.expanduser(instance.get_ssh_key_name())
          try:
@@ -465,23 +327,16 @@ class AWS_Client(object):
              ssh.connect(ec2_instance.ip_address, username=username, key_filename=key_filename)
              stdin, stdout, stderr = ssh.exec_command('sudo whoami',get_pty=True)
          except paramiko.SSHException as e:
-            print 'Connection to %s with user %s and ssh key %s failed. %s'%(instance.get_ip_address(),username,key_filename,e)
             logger.warning('Connection to %s with user %s and ssh key %s failed. %s',instance.get_ip_address(),username,key_filename,e)
             continue
          except socket.error as e1:
-            print 'Connection to %s with user %s and ssh key %s failed. %s'%(instance.get_ip_address(),username,key_filename,e1)
             logger.warning('Connection to %s with user %s and ssh key %s failed. %s',instance.get_ip_address(),username,key_filename,e1)
             continue
 
-         stdout=stdout.readlines()
-         stderr=stderr.readlines()
-         print 'stdout: %s'%stdout
-         print 'stderr: %s'%stderr
          logger.debug('Checking if %s has sudo privileges on %s ',username,instance.get_instance_id())
          for line in stdout:
             if line.startswith('root'):
                sudo_user = username
-               print 'sudo found: %s'%username
                logger.debug('sudo found, username=%s, instance=%s',username,instance.get_instance_id())
                break
          if sudo_user is not None:
@@ -502,7 +357,6 @@ class AWS_Client(object):
          return None
       regions_info = boto.ec2.regions()
       for region in [boto.ec2.get_region(region_info.name) for region_info in regions_info]:
-          print region
           logger.info('Region=%s',region)
           con = boto.ec2.connection.EC2Connection(aws_access_key_id=self.get_aws_conf().get_aws_access_key_id(), aws_secret_access_key=self.get_aws_conf().get_aws_secret_access_key(),region=region)
           if con is not None:
@@ -532,9 +386,20 @@ class AWS_Client(object):
       ssh_config.close()
       return ssh_config
 
-
-if __name__ == '__main__':
+def main(aws_conf_filename):
+   if aws_conf_filename is None:
+      return      
    # Open the updated version of the aws config file
-   aws_conf = AWSConfFile('aws.json')
+   aws_conf = AWSConfFile(aws_conf_filename)
    aws_client = AWS_Client(aws_conf)
    aws_client.aws_create_ssh_config()
+   
+
+if __name__ == '__main__':
+   if len(sys.argv) < 1:
+      print 'You must specify the path to the AWS configuration file containing your AWS credentials'
+      aws_conf_filename = None
+   else:
+      aws_conf_filename = sys.argv[1]
+
+   main(aws_conf_filename)

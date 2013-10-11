@@ -6,7 +6,7 @@ setup(
     author='B Gaudin',
     author_email='benoit@logentries.com',
     packages=['logentriesprovisioning', 'logentriesprovisioning.test'],
-    scripts=['bin/logentries.py','bin/aws_client.py'],
+    scripts=['bin/sync_log.py','bin/aws_client.py'],
     url='',
     license='LICENSE.txt',
     description='Logentries Automatic Provioning.',
@@ -14,5 +14,6 @@ setup(
     install_requires=[
         "LogentriesSDK",
         "fabric",
+        "logentries",
     ],
 )
