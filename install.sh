@@ -120,8 +120,7 @@ python virtualenv-1.10/virtualenv.py env
 
 # install boto and paramiko in the virtual environment
 env/bin/pip install boto
-env/bin/pip install paramiko
-
-#mv ../logentries_aws.tar.gz .
-#tar xvzf logentries_aws.tar.gz
-#mv aws_template.json aws.json
+env/bin/pip install fabric
+env/bin/pip install git+git://github.com/logentries/le_python.git
+env/bin/pip install LogentriesSDK/dist/LogentriesSDK-0.1.0.tar.gz
+env/bin/pip install LogentriesProvisioning/dist/LogentriesProvisioning-0.1.0.tar.gz

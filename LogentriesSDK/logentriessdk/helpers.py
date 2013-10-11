@@ -1,6 +1,6 @@
-from LogentriesSDK.exception import InvalidAccountKeyException, InvalidParametersException
-import LogentriesSDK.constants as constants
-import LogentriesSDK.models as models
+from exception import InvalidAccountKeyException, InvalidParametersException
+import logentriessdk.constants as constants
+import logentriessdk.models as models
 
 import os
 """
