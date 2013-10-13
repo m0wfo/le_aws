@@ -6,6 +6,7 @@ WORKING_DIR = None
 AWS_SECRET_ACCESS_KEY = None
 AWS_ACCESS_KEY_ID = None
 
+from logentries import LogentriesHandler
 logger = logging.getLogger('sync')
 
 def set_working_dir(working_dir):
@@ -96,7 +97,7 @@ def get_aws_access_key_id():
 
 def set_logentries_logging():
     if get_account_key() is not None:
-        logger = logging.get_logger('sync')
+        logger = logging.getLogger('sync')
         log_handler = LogentriesHandler('2de80254-62bb-4ea3-9437-b79f6c20d314')
         logger.addHandler(log_handler)
 
