@@ -405,4 +405,5 @@ if __name__ == '__main__':
       constants.set_working_dir(sys.argv[1])
       constants.set_aws_credentials(None)
       constants.set_account_key(None)
+      constants.set_logentries_logging()
       main('%s/aws.json'%constants.WORKING_DIR)
