@@ -100,6 +100,20 @@ if [ "$DistroBasedOn" == "debian" ]; then
     # TODO: should we avoid installing python-dev and paramiko for a 'local' setup?
     echo "Installing python-dev"
     sudo apt-get install python-dev
+elif [ "$OS" == "mac" ]; then
+    # Checking the presence of python development tools and headers: http://stackoverflow.com/questions/4848566/check-for-existence-of-python-dev-files-from-bash-script 
+    # first, makes sure distutils.sysconfig usable
+    #if ! $(python -c "import sys\ntry:\n\timport distutils.sysconfig\nsys.exit(0)\nexcept:\n\tsys.exit(1)" &> /dev/null); then
+    #   echo "Could not verify the presence of python development headers and tools. Please install them onto your system if they are not present (e.g. thourgh Xcode)." >&2
+    #   exit 2;
+    #fi
+
+    # get include path for this python version
+    INCLUDE_PY=$(python -c "from distutils import sysconfig as s; print s.get_config_vars()['INCLUDEPY']")
+    if [ ! -f "${INCLUDE_PY}/Python.h" ]; then
+       echo "Python development headers and tools could not be found. Please install them first (e.g. thourgh Xcode)." >&2
+       exit 3;
+    fi
 else
     echo "Debian based distribution is required. Found $DistroBasedOn.";
     exit 1;
@@ -113,11 +127,13 @@ if [ ! -d logentries ]; then
 fi
 cd logentries
 
-# Set working directory
-WORKING_DIR=`pwd`
 
 # install virutalenv
-wget --no-check-certificate https://pypi.python.org/packages/source/v/virtualenv/virtualenv-1.10.tar.gz
+if [ `command -v wget` != "" ]; then
+   wget --no-check-certificate https://pypi.python.org/packages/source/v/virtualenv/virtualenv-1.10.tar.gz
+elif [ `command -v curl` != "" ]; then
+   curl -O --insecure https://pypi.python.org/packages/source/v/virtualenv/virtualenv-1.10.tar.gz
+fi
 tar xvfz virtualenv-1.10.tar.gz
 python virtualenv-1.10/virtualenv.py env
 
@@ -125,8 +141,8 @@ python virtualenv-1.10/virtualenv.py env
 env/bin/pip install boto
 env/bin/pip install fabric
 env/bin/pip install logentries
-env/bin/pip install file:///home/benoit/Logentries/git_repo/awswork/LogentriesSDK/dist/LogentriesSDK-0.1.0.tar.gz
-env/bin/pip install file:///home/benoit/Logentries/git_repo/awswork/LogentriesProvisioning/dist/LogentriesProvisioning-0.1.0.tar.gz
+env/bin/pip install file:///Users/benoit/Documents/Logentries/git_repo/awswork/LogentriesSDK/dist/LogentriesSDK-0.1.0.tar.gz
+env/bin/pip install file:///Users/benoit/Documents/Logentries/git_repo/awswork/LogentriesProvisioning/dist/LogentriesProvisioning-0.1.0.tar.gz
 
 # Create aws conf file
 echo '{"aws_secret_access_key": "0vNc1N5F84mnkyE6Z5hTRBpp1JIjozhMgszrQ6Mu",' >> aws.json
@@ -141,11 +157,14 @@ echo '"ssh_key_paths": ["~/.ssh/"]}' >> aws.json
 # Create logentries conf file
 echo '{"account_key": "9d1d1f88-eb3a-4522-8196-f45414530ef7"}' >> logentries.json
 
-# Create aws setup command
-echo "env/bin/python env/bin/sync_log.py $WORKING_DIR/logentries.json $WORKING_DIR/ssh_config" >> sync
+# Create sync setup command
+echo 'WORKING_DIR=`pwd`' >> sync
+echo 'env/bin/python env/bin/sync_log.py $WORKING_DIR' >> sync
 chmod u+x sync
 
 # Create aws setup command
-echo "env/bin/python env/bin/aws_client.py aws.json $WORKING_DIR/logentries.json" >> aws_sync
-echo "./sync" >> aws_sync
+echo 'WORKING_DIR=`pwd`' >> aws_sync
+echo 'echo $WORKING_DIR' >> aws_sync
+echo 'env/bin/python env/bin/aws_client.py $WORKING_DIR' >> aws_sync
+echo './sync' >> aws_sync
 chmod u+x aws_sync

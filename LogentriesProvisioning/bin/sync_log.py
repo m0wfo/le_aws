@@ -3,7 +3,7 @@ from paramiko.config import SSHConfig
 
 import logentriessdk.client as LogClient 
 from logentriesprovisioning import ConfigFile
-from logentriesprovisioning import constants
+import logentriesprovisioning.constants
 
 import os
 import sys
@@ -111,11 +111,22 @@ def load_conf_file(log_conf_file,instance_id):
     return log_conf
 
 
+def get_logentries_host(log_client,conf_host):
+    """
+    """
+    account = log_client.get_account()
+    matching_host = None
+    for host in account.get_hosts():
+        if host.get_key() == conf_host.get_key():
+            matching_host = host
+            break
+    return matching_host
+
 def update_instance_conf(log_paths, log_conf):
     """
     Returns the updated log_conf, taking into account new log files present on the instance as well as modifications made to the corresponding logentries host.
     """
-    log_client = LogClient.Client(constants.ACCOUNT_KEY)
+    log_client = LogClient.Client(logentriesprovisioning.constants.ACCOUNT_KEY)
     instance_id, config = get_ssh_config(env.host)
 
     if log_conf is None and len(log_paths)>0:
@@ -132,22 +143,17 @@ def update_instance_conf(log_paths, log_conf):
             logger.warning('Host %s has an logentries-rsyslog config file but no account key!!',host.get_name())
             log_conf = create_host_logs(log_client,instance_id,log_paths)
             return log_conf
-
-        account = log_client.get_account()
-        matching_host = None
-        for host in account.get_hosts():
-            if host.get_key() == conf_host.get_key():
-                matching_host = host
-                break
+        
+        logentries_host = get_logentries_host(log_client,conf_host)
         # If there is no matching host, then it is assumed that it was deleted from Logentries and that no configuration should be associated to this instance.
-        if matching_host is None:
+        if logentries_host is None:
             log_conf = create_host_logs(log_client,instance_id,log_paths)
             return log_conf
 
         for new_log in get_new_logs(log_paths, log_conf):
             # Update matching host so that each new log becomes part of it.
-            matching_host = log_client.create_log_token(host=matching_host,log_name=new_log)
-        log_conf.set_host(matching_host)
+            logentries_host = log_client.create_log_token(host=logentries_host,log_name=new_log)
+        log_conf.set_host(logentries_host)
     return log_conf
 
 
@@ -221,6 +227,55 @@ def sync():
     restart_rsyslog(instance_id)  
 
 
+def remove_log_conf(instance_id):
+    """
+    """
+    remote_conf_filename = '/etc/rsyslog.d/logentries_%s.conf'%instance_id
+    try:
+        # Remove logentries rsyslog conf file
+        sudo('rm %s'%remote_conf_filename)
+    except:
+        logger.error('Could not remove %s',remote_conf_filename)
+        
+    if output.succeeded:
+        logger.info('Successfully removed %s',remote_conf_filename)
+    return
+
+    
+def remove(instance_id):
+    """
+    """
+    log_conf_file = get_instance_log_conf(instance_id)
+
+    log_conf = load_conf_file(log_conf_file,instance_id)
+
+    if log_conf is None:
+        logger.info('No existing logentries rsyslog configuration file was found on instance %s',instance_id)
+        return
+
+    conf_host = log_conf.get_host()
+    if conf_host is None:
+        logger.error('Error. This instance configuration is missing the corresponding model!! instance_id=%s',instance_id)
+        return
+    
+    if conf_host.get_key() is None:
+        logger.error('Host %s has an logentries-rsyslog config file but no account key!!',host.get_name())
+    else:
+        log_client = LogClient.Client(logentriesprovisioning.constants.ACCOUNT_KEY)
+        logentries_host = get_logentries_host(log_client,conf_host)
+        # If there is no matching host, then it is assumed that it was deleted from Logentries and that no configuration should be associated to this instance.
+        if logentries_host is not None:
+            succeeded = log_client.remove_host(logentries_host)
+            if succeeded:
+                logger.warning('Host %s was removed from Logentries.'%host.get_name())
+                remove_log_conf(instance_id)
+                restart_rsyslog(instance_id)
+            else:
+                logger.error('Could not remove Host %s from Logentries.'%host.get_name())
+    return
+
+
+
 def main(ssh_config_name):    
     env.use_ssh_config = True
     try:
@@ -245,9 +300,9 @@ def main(ssh_config_name):
 
 
 if __name__ == "__main__":
-    account_key_file = None
     if len(sys.argv) < 2:
-        print 'You must specify the path to the Logentries configuration file containing your Logentries account key as well as the path to your ssh config file.'
+        print 'You must specify the path to your ssh config file.'
     else:
-        constants.set_account_key(sys.argv[1])
-        main(sys.argv[2])
+        logentriesprovisioning.constants.set_working_dir(sys.argv[1])
+        logentriesprovisioning.constants.set_account_key(None)
+        main('%s/ssh_config'%sys.argv[1])
