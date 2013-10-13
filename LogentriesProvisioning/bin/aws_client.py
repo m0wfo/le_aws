@@ -12,7 +12,10 @@ from logentriesprovisioning import Instance
 from logentriesprovisioning import SSHKeys
 import logentriessdk.client as LogClient 
 from logentriesprovisioning import ConfigFile
+from logentriesprovisioning import constants
 
+import logging
+logger = logging.getLogger('sync')
 
 class AWSConfFile(object):
 
@@ -396,10 +399,10 @@ def main(aws_conf_filename):
    
 
 if __name__ == '__main__':
-   if len(sys.argv) < 1:
+   if len(sys.argv) < 2:
       print 'You must specify the path to the AWS configuration file containing your AWS credentials'
-      aws_conf_filename = None
    else:
-      aws_conf_filename = sys.argv[1]
-
-   main(aws_conf_filename)
+      constants.set_working_dir(sys.argv[1])
+      constants.set_aws_credentials(None)
+      constants.set_account_key(None)
+      main('%s/aws.json'%constants.WORKING_DIR)
