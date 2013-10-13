@@ -305,4 +305,5 @@ if __name__ == "__main__":
     else:
         logentriesprovisioning.constants.set_working_dir(sys.argv[1])
         logentriesprovisioning.constants.set_account_key(None)
+        logentriesprovisioning.constants.set_logentries_logging()
         main('%s/ssh_config'%sys.argv[1])
