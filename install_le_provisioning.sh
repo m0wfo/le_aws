@@ -121,12 +121,14 @@ wget --no-check-certificate https://pypi.python.org/packages/source/v/virtualenv
 tar xvfz virtualenv-1.10.tar.gz
 python virtualenv-1.10/virtualenv.py env
 
+GIT_REPO_LOCATION=file:///tmp/awswork
+
 # install boto and paramiko in the virtual environment
 env/bin/pip install boto
 env/bin/pip install fabric
 env/bin/pip install logentries
-env/bin/pip install file:///home/benoit/Logentries/git_repo/awswork/LogentriesSDK/dist/LogentriesSDK-0.1.0.tar.gz
-env/bin/pip install file:///home/benoit/Logentries/git_repo/awswork/LogentriesProvisioning/dist/LogentriesProvisioning-0.1.0.tar.gz
+env/bin/pip install $GIT_REPO_LOCATION/LogentriesSDK/dist/LogentriesSDK-0.1.0.tar.gz
+env/bin/pip install $GIT_REPO_LOCATION/LogentriesProvisioning/dist/LogentriesProvisioning-0.1.0.tar.gz
 
 # Create aws conf file
 echo '{"aws_secret_access_key": "0vNc1N5F84mnkyE6Z5hTRBpp1JIjozhMgszrQ6Mu",' >> aws.json
