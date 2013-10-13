@@ -1,6 +1,7 @@
 from logentries import LogentriesHandler
-import logentriesprovisioning
-from LogentriesSDK import logentriessdk
+#import constants
+import logentriessdk
+import logging
 
 # create logger
 logger = logging.getLogger('sync')
@@ -12,7 +13,7 @@ format_handler.setFormatter(formatter)
 logger.addHandler(format_handler)
 
 # 
-constants.set_account_key()
-if constants.ACCOUNT_KEY is not None:
-    log_handler = LogentriesHandler('2de80254-62bb-4ea3-9437-b79f6c20d314')
-    logger.addHandler(log_handler)
+#logentriesprovisioning.constants.set_account_key()
+#if logentriesprovisioning.constants.ACCOUNT_KEY is not None:
+#    log_handler = LogentriesHandler('2de80254-62bb-4ea3-9437-b79f6c20d314')
+#    logger.addHandler(log_handler)
