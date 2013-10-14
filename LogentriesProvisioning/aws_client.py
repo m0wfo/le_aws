@@ -389,9 +389,21 @@ class AWS_Client(object):
       ssh_config.close()
       return ssh_config
 
-def main(aws_conf_filename):
-   if aws_conf_filename is None:
+
+def create_ssh_config(working_dir=None):
+   if working_dir is None:
       return      
+
+   constants.set_working_dir(working_dir)
+   constants.set_aws_credentials(None)
+   constants.set_account_key(None)
+   constants.set_logentries_logging()
+
+   if working_dir is None:
+      aws_conf_filename = 'aws.json'
+   else:
+      aws_conf_filename = '%s/aws.json'%working_dir
+
    # Open the updated version of the aws config file
    aws_conf = AWSConfFile(aws_conf_filename)
    aws_client = AWS_Client(aws_conf)

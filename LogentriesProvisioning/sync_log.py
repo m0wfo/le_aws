@@ -276,7 +276,19 @@ def remove(instance_id):
 
 
 
-def main(ssh_config_name):    
+def main(working_dir=None):
+    if working_dir is None:
+        return      
+
+    logentriesprovisioning.constants.set_working_dir(working_dir)
+    logentriesprovisioning.constants.set_account_key(None)
+    logentriesprovisioning.constants.set_logentries_logging()
+
+    if working_dir is None:
+        ssh_config_name = 'ssh_config'
+    else:
+        ssh_config_name = '%s/ssh_config'%working_dir
+
     env.use_ssh_config = True
     try:
         config_file = file(ssh_config_name)
