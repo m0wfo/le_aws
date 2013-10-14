@@ -137,7 +137,7 @@ fi
 tar xvfz virtualenv-1.10.tar.gz
 python virtualenv-1.10/virtualenv.py env
 
-GIT_REPO_LOCATION=file:///tmp/awswork
+GIT_REPO_LOCATION=file:///Users/benoit/Documents/Logentries/git_repo/awswork
 
 # install boto and paramiko in the virtual environment
 env/bin/pip install boto
@@ -159,14 +159,19 @@ echo '"ssh_key_paths": ["~/.ssh/"]}' >> aws.json
 # Create logentries conf file
 echo '{"account_key": "9d1d1f88-eb3a-4522-8196-f45414530ef7"}' >> logentries.json
 
+WORKING_DIR=`pwd`
 # Create sync setup command
-echo 'WORKING_DIR=`pwd`' >> sync
-echo 'env/bin/python env/bin/sync_log.py $WORKING_DIR' >> sync
-chmod u+x sync
+echo "#! $WORKING_DIR/env/bin/python" >> sync
+echo 'import os' >> sync
+echo 'from logentriesprovisioning import sync_log' >> sync
+echo 'sync_log.main(working_dir=os.getcwd())' >> sync
+chmod +x sync
 
 # Create aws setup command
-echo 'WORKING_DIR=`pwd`' >> aws_sync
-echo 'echo $WORKING_DIR' >> aws_sync
-echo 'env/bin/python env/bin/aws_client.py $WORKING_DIR' >> aws_sync
-echo './sync' >> aws_sync
-chmod u+x aws_sync
+echo "#! $WORKING_DIR/env/bin/python" >> aws_sync
+echo 'import os' >> aws_sync
+echo 'from logentriesprovisioning import aws_client' >> aws_sync
+echo 'from logentriesprovisioning import sync_log' >> aws_sync
+echo 'aws_client.create_ssh_config(working_dir=os.getcwd())' >> aws_sync
+echo 'sync_log.main(working_dir=os.getcwd())' >> aws_sync
+chmod +x aws_sync
