@@ -39,28 +39,12 @@ class AWSConfFile(object):
             logger.error('%s missing in %s',key_id,filename)
             self._aws_access_key_id = None
 
-         # TODO: Account key is not aws specific. The name of this class should probably change.
-         if 'account_key' in conf_json:
-            self._account_key = conf_json['account_key']
-         else:
-            self._account_key = None
-
          if 'filters' in conf_json:
             self._filters = conf_json['filters']
          else:
             print '%s missing in %s'%('filters',filename)
             logger.error('%s missing in %s','filters',filename)
             self._filters = []
-
-         if 'ec2_filters' in conf_json:
-            self._ec2_filters = [EC2Filter.load_json(ec2_filter_raw) for ec2_filter_raw in conf_json['ec2_filters']]
-         else:
-            self._ec2_filters = []
-
-         if 'log_filters' in conf_json:
-            self._log_filters = [LogFilter.load_json(log_filter_raw) for log_filter_raw in conf_json['log_filters']]
-         else:
-            self._log_filters = {}
 
          if secret_key in conf_json:
             self._aws_secret_access_key = conf_json[secret_key]
@@ -83,15 +67,6 @@ class AWSConfFile(object):
             logger.error('ssh_key_paths missing in %s',filename)
             self._ssh_key_paths = None
 
-         if 'ssh_keys' in conf_json:
-            self._ssh_keys = conf_json['ssh_keys']
-         else:
-            self._ssh_keys = None
-
-         if 'instances' in conf_json:
-            self._instances = []
-         else:
-            self._instances = None
 
    def set_name(self,name):
       self._name = name
@@ -99,11 +74,10 @@ class AWSConfFile(object):
    def get_name(self):
       return self._name
 
-   def set_ec2_filters(self,ec2_filters):
-      self._ec2_filters = ec2_filters
-
-   def get_ec2_filters(self):
-      return self._ec2_filters
+   def get_ec2_filter(self,_filter):
+      if 'ec2_filter' not in _filter:
+         return None
+      return _filter['ec2_filter']
 
    def set_filters(self,filters):
       self._filters = filters
@@ -111,17 +85,10 @@ class AWSConfFile(object):
    def get_filters(self):
       return self._filters
 
-   def set_log_filters(self,log_filters):
-      self._log_filters = log_filters
-
-   def get_log_filters(self):
-      return self._log_filters
-
-   def set_account_key(self,account_key):
-      self._account_key = account_key
-
-   def get_account_key(self):
-      return self._account_key
+   def get_log_filter(self,_filter):
+      if 'log_filter' not in _filter:
+         return None
+      return _filter['log_filter']
 
    def set_aws_access_key_id(self,aws_access_key_id):
       self._aws_access_key_id = aws_access_key_id
@@ -161,55 +128,6 @@ class AWSConfFile(object):
       elif ssh_key_path not in _ssh_key_paths:
          self.get_ssh_key_paths().append(ssh_key_path)
 
-   def set_ssh_keys(self,ssh_keys):
-      self._ssh_keys = ssh_keys
-
-   def add_ssh_key(self,name,path):
-      self._ssh_keys[name] = path
-
-   def add_ssh_keys(self,ssh_keys):
-      self._ssh_keys.update(ssh_keys)
-
-   def get_ssh_keys(self):
-      return self._ssh_keys
-
-   def set_instances(self,instances):
-      self._instances = instances
-
-   def add_instance(self,instance):
-      if self.get_instances() is None:
-         self._instances = [instance]
-      elif instance not in self.get_instances():
-         self._instances.append(instance)
-      else:
-         for i in range(0,len(self.get_instances())):
-            if self.get_instances()[i] == instance:
-               self._instances[i] = Instance.load_aws_data(instance.to_json())
-               break
-
-   def add_instances(self,instances):
-      for instance in instances:
-         self.add_instance(instance)
-
-   def get_instance_with_id(self,aws_id):
-      for i in self.get_instances():
-         if i.get_instance_id() == aws_id:
-            return i
-      return None
-
-   def set_instance(self,aws_id,instance):
-      for k in range(0,len(self.get_instances())):
-         i = self.get_instances()[k]
-         if i is None:
-             logger.error('Error. Instance is None, id=%s',aws_id)
-         if i.get_instance_id() == aws_id:
-            self._instances[k] = instance
-            return
-      self.add_instance(instance)
-      return
-
-   def get_instances(self):
-      return self._instances
 
    @staticmethod
    def open(filename):
@@ -226,10 +144,7 @@ class AWSConfFile(object):
       conf_file.close()
 
    def to_json(self):
-      instance_list = []
-      for instance in self.get_instances():
-         instance_list.append(instance.to_json())
-      return {"account_key":self.get_account_key(),"aws_access_key_id":self.get_aws_access_key_id(),"aws_secret_access_key":self.get_aws_secret_access_key(),"usernames":self.get_usernames,"ssh_key_paths":self.get_ssh_key_paths(),"usernames":self.get_usernames(),"ssh_keys":self.get_ssh_keys(),"instances":instance_list,"ec2_filters": [ec2_filter.to_json() for ec2_filter in self.get_ec2_filters()],"log_filters": [log_filter.to_json() for log_filter in self.get_log_filters()]}
+      return {"account_key":self.get_account_key(),"aws_access_key_id":self.get_aws_access_key_id(),"aws_secret_access_key":self.get_aws_secret_access_key(),"usernames":self.get_usernames,"ssh_key_paths":self.get_ssh_key_paths(),"usernames":self.get_usernames(),"filters": self.get_filters()}
 
    def __unicode__(self):
       return json.dumps(self.to_json())
@@ -303,7 +218,6 @@ class AWS_Client(object):
 
    def load_instance_ssh_attributes(self,local_keys,ec2_instance,log_filter='/var/log/.*log'):
       """
-      
       """
       sudo_user = None
       if ec2_instance.platform == 'windows':
@@ -374,17 +288,23 @@ class AWS_Client(object):
                   local_keys = ssh_k.get_keys_onpaths(ssh_k.get_paths(),ssh_k.get_names())
 
                   for _filter in self.get_aws_conf().get_filters():
-                     ec2_filter = (_filter['ec2_filter'] if 'ec2_filter' in _filter else None)
-                     log_filter = (_filter['log_filter'] if 'log_filter' in _filter else '/var/log/.*log')
-                  instances = con.get_only_instances(filters=ec2_filter)
-                  for ec2_instance in instances:
-                     if ec2_instance.state != 'running':
-                        print 'Instance %s is not running, state=%s'%(ec2_instance.id,ec2_instance.state)
-                        logger.info('Instance %s is not running, state=%s',ec2_instance.id,ec2_instance.state)
-                        continue
-                     instance = self.load_instance_ssh_attributes(local_keys,ec2_instance,log_filter)
-                     if instance is not None:
-                        ssh_config.write(instance.get_ssh_config_entry())
+                     ec2_filter = self.get_aws_conf().get_ec2_filter(_filter)
+                     if ec2_filter is None:
+                        ec2_filter = {}
+                     log_filter = self.get_aws_conf().get_log_filter(_filter)
+                     print str(log_filter)
+                     if log_filter is None:
+                        log_filter = '/var/log/.*log' 
+                     ec2_instances = con.get_only_instances(filters=ec2_filter)
+                     for ec2_instance in ec2_instances:
+                        if ec2_instance.state != 'running':
+                           print 'Instance %s is not running, state=%s'%(ec2_instance.id,ec2_instance.state)
+                           logger.info('Instance %s is not running, state=%s',ec2_instance.id,ec2_instance.state)
+                           continue
+                        print log_filter
+                        instance = self.load_instance_ssh_attributes(local_keys,ec2_instance,log_filter)
+                        if instance is not None:
+                           ssh_config.write(instance.get_ssh_config_entry())
                   con.close()
       ssh_config.close()
       return ssh_config

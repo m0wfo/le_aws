@@ -1,4 +1,3 @@
-from logentries import LogentriesHandler
 #import constants
 import logentriessdk
 import logging
@@ -11,9 +10,3 @@ formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(
 format_handler = logging.StreamHandler()
 format_handler.setFormatter(formatter)
 logger.addHandler(format_handler)
-
-# 
-#logentriesprovisioning.constants.set_account_key()
-#if logentriesprovisioning.constants.ACCOUNT_KEY is not None:
-#    log_handler = LogentriesHandler('2de80254-62bb-4ea3-9437-b79f6c20d314')
-#    logger.addHandler(log_handler)

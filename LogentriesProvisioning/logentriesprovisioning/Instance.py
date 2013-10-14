@@ -91,7 +91,7 @@ class Instance(object):
       Args: log_filter is a regular expression on the path where to consider log files.
       Sets the log file path filter to log_filter
       """
-      self._log__filter = log_filter
+      self._log_filter = log_filter
 
    def set_ip_address(self,ip_address):
       """
