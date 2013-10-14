@@ -9,9 +9,28 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # options are documented and commented below. For a complete reference,
   # please see the online documentation at vagrantup.com.
 
-  # Every Vagrant virtual environment requires a box to build off of.
-  config.vm.box = "precise32"
   config.vm.provision :shell, :path => "~/Logentries/git_repo/awswork/setup_test_box.sh"
+  # Every Vagrant virtual environment requires a box to build off of.
+  config.vm.define "precise32" do |precise32|
+    precise32.vm.box = "precise32"
+    # Create a private network, which allows host-only access to the machine
+    # using a specific IP.
+    config.vm.network :private_network, ip: "192.168.33.10"
+  end
+
+  config.vm.define "precise64" do |precise64|
+    precise64.vm.box = "precise64"
+    # Create a private network, which allows host-only access to the machine
+    # using a specific IP.
+    config.vm.network :private_network, ip: "192.168.33.11"
+  end
+
+  config.vm.define "ubuntu1210" do |ubuntu1210|
+    ubuntu1210.vm.box = "ubuntu1210"
+    # Create a private network, which allows host-only access to the machine
+    # using a specific IP.
+    config.vm.network :private_network, ip: "192.168.33.12"
+  end
 
   # The url from where the 'config.vm.box' box will be fetched if it
   # doesn't already exist on the user's system.
@@ -22,9 +41,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # accessing "localhost:8080" will access port 80 on the guest machine.
   # config.vm.network :forwarded_port, guest: 80, host: 8080
 
-  # Create a private network, which allows host-only access to the machine
-  # using a specific IP.
-  config.vm.network :private_network, ip: "192.168.33.10"
 
   # Create a public network, which generally matched to bridged network.
   # Bridged networks make the machine appear as another physical device on

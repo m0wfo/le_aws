@@ -95,7 +95,7 @@ if [ "$DistroBasedOn" == "debian" ]; then
     echo "Updating apt"
     sudo apt-get update
     # Installing curl
-    echo "Updating apt"
+    echo "Installing wget if not already present."
     sudo apt-get install wget
     # TODO: should we avoid installing python-dev and paramiko for a 'local' setup?
     echo "Installing python-dev"
@@ -137,7 +137,7 @@ fi
 tar xvfz virtualenv-1.10.tar.gz
 python virtualenv-1.10/virtualenv.py env
 
-GIT_REPO_LOCATION=file:///Users/benoit/Documents/Logentries/git_repo/awswork
+GIT_REPO_LOCATION=file:///home/benoit/Logentries/git_repo/awswork
 
 # install boto and paramiko in the virtual environment
 env/bin/pip install boto

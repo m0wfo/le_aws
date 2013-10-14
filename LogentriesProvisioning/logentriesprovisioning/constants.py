@@ -6,6 +6,8 @@ WORKING_DIR = None
 AWS_SECRET_ACCESS_KEY = None
 AWS_ACCESS_KEY_ID = None
 
+_LOGENTRIES_LOGGING_HANDLER = None
+
 from logentries import LogentriesHandler
 logger = logging.getLogger('sync')
 
@@ -95,10 +97,11 @@ def get_aws_access_key_id():
     global AWS_ACCESS_KEY_ID
     return AWS_ACCESS_KEY_ID
 
-def set_logentries_logging():
-    if get_account_key() is not None:
-        logger = logging.getLogger('sync')
-        log_handler = LogentriesHandler('2de80254-62bb-4ea3-9437-b79f6c20d314')
-        logger.addHandler(log_handler)
+def set_logentries_logging(logger_name='sync'):
+    global _LOGENTRIES_LOGGING_HANDLER
+    if get_account_key() is not None and _LOGENTRIES_LOGGING_HANDLER is None:
+        logger = logging.getLogger(logger_name)
+        _LOGENTRIES_LOGGING_HANDLER = LogentriesHandler('2de80254-62bb-4ea3-9437-b79f6c20d314')
+        logger.addHandler(_LOGENTRIES_LOGGING_HANDLER)
 
 
