@@ -6,7 +6,7 @@ setup(
     author='B Gaudin',
     author_email='benoit@logentries.com',
     packages=['logentriesprovisioning', 'logentriesprovisioning.test'],
-    scripts=['bin/sync_log.py','bin/aws_client.py'],
+    scripts=[],
     url='',
     license='LICENSE.txt',
     description='Logentries Automatic Provioning.',
