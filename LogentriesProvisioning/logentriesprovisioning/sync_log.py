@@ -206,7 +206,10 @@ def deploy_log_conf(log_conf):
 def sync():
     # Get current instance information
     instance_id, ssh_config = get_ssh_config(env.host)
-
+    if 'log_filter' in ssh_config:
+        print ssh_config['log_filter']
+    else:
+        print 'no log_filter specified'
     log_paths = get_instance_log_paths(ssh_config)
     logger.info('LOG_PATHS: %s'%log_paths)
 

@@ -1,0 +1,35 @@
+Host precise32
+	HostName 192.168.33.10
+	User test_user
+	IdentityFile test_key
+	LogFilter /var/log/.*log
+
+Host precise32_sudo
+	HostName 192.168.33.10
+	User sudo_user
+	IdentityFile test_sudo_key
+	LogFilter /var/log/.*log
+
+Host precise64
+	HostName 192.168.33.11
+	User test_user
+	IdentityFile test_key
+	LogFilter /var/log/.*log
+
+Host precise64_sudo
+	HostName 192.168.33.11
+	User sudo_user
+	IdentityFile test_sudo_key
+	LogFilter /var/log/.*log
+
+Host ubuntu1210
+	HostName 192.168.33.12
+	User test_user
+	IdentityFile test_key
+	LogFilter /var/log/.*log
+
+Host ubuntu1210_sudo
+	HostName 192.168.33.12
+	User sudo_user
+	IdentityFile test_sudo_key
+	LogFilter /var/log/.*log
