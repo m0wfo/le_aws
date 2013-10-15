@@ -19,11 +19,21 @@ client.get_account()
 client.create_host( name )
 client.update_host( host, *name, *location )
 client.remove_host( host )
+client.get_host(hostkey,name)
+client.get_log(logkey,hostkey,logname)
 client.create_log_token( host, logname )
 client.create_log_http( host, logname )
 client.create_log_agent( host, logname, filename )
 client.create_log_syslog( host, logname )
 client.remove_log( host, log )
+client.get_events()
+client.get_event(eventname,_id)
+client.delete_event(_id)
+client.create_event(eventname,color)
+client.get_tags(logkey)
+client.get_tag(logkey, tagname)
+client.create_tag(logkey, tagname, eventname, pattern)
+client.remove_tag(logkey, _id)
 
 See individual calls for more information
 """
@@ -49,6 +59,8 @@ import logentriessdk.constants as constants
 import logentriessdk.helpers as helpers
 import logentriessdk.models as models
 import inspect
+
+COLORS=["ff0000", "ff9933", "009900", "663333", "66ff66", "333333", "000099", "0099ff"]
 
 class Client(object):
 
@@ -366,3 +378,219 @@ class Client(object):
 			return True
 		else:
 			return False
+
+
+        def get_host(self, hostkey, name):
+		""" Retrieves the host with the specified logkey. If logkey is None, then this method returns the first encountered host with name 'name'.
+                Returns None if no host with key 'hostkey' or name 'name' could be retrieved.
+                """
+                account = self.get_account()
+                if account is None:
+                        return None
+                if hostkey is not None:
+                        return account.get_host(hostkey)
+                if name is not None:
+                        for host in account.get_hosts():
+                                if host.get_name() == name:
+                                        return host
+                return None
+
+
+        def get_log(self, logkey, hostkey=None, logname=None):
+		""" Retrieves the log with the specified logkey. If logkey is None, then this method returns the first encountered log with name 'logname' that is part of host with key 'hostkey'. 
+                Returns None if no log with key 'logkey' or name 'logname' (within host with key 'hostkey') could be retrieved.
+                """
+                account = self.get_account()
+                if account is None:
+                        return None
+                for host in account.get_hosts():
+                        if logkey is not None:
+                                return host.get_log(logkey)
+                        
+                        for log in host.get_logs():
+                                if log.get_name() == logname:
+                                        return log
+                return None
+
+        def get_events(self):
+		""" Retrieves all the events for a Logentries account.
+                Returns a list of events where each event is a json structure with keys:
+                {
+                'vtype',
+                'name',
+                'title',
+                'color',
+                'active',
+                'id',
+                'desc'.
+                }
+                Returns None if no events could be retrieved.
+                """
+		request = {
+                        'request':'list_tags',
+                        'user_key':self.get_account_key(),
+                        'id':'init_menu'
+		}
+
+		events, success = self._conn.request( request )
+
+		if success and 'tags' in events:
+			return events['tags']
+                else:
+                        return None
+
+        def get_event(self,eventname,_id=None):
+		""" Retrieves Event with id '_id' if it is specified or the first event whose name matches eventname from a Logentries account. _id has precedence over name. So if _id is specified, then eventname is discarded.
+                Returns Event as a json structure with keys:
+                {
+                'vtype',
+                'name',
+                'title',
+                'color',
+                'active',
+                'id',
+                'desc'.
+                }
+                Returns None if no event with name eventname exist or if it could not be retrieved.
+                """
+                key = '_id'
+                if _id is None:
+                        key = 'name'
+                events = self.get_events()
+                if events is not None:
+                        for event in events:
+                                if key in event and event[key] == eventname:
+                                        return event
+                return None
+
+        def create_event(self,eventname,color):
+		""" Returns the id of the event with name eventname and color 'color' for a Logentries account. If an event with name eventname already exist for the logentries account, then it is returned and no new event is created (In particular, color is discarded in this case). If no event with name eventname already exists then one is created and returned.
+                Returns None if no event could be created or if its id could not be retrieved.
+                """
+                event = self.get_event(eventname)
+                if event is None:
+                        request = {
+                                'request':'set_tag',
+                                'user_key': self.get_account_key(),
+                                'tag_id': '',
+                                'name': eventname,
+                                'title': eventname,
+                                'desc': eventname,
+                                'color': color,
+                                'vtype': 'bar'
+                        }
+
+                        resp, success = self._conn.request( request )
+
+                        if success and 'tag_id' in resp:
+                                return resp['tag_id']
+                if 'id' in event:
+                        return event['id']
+                return None
+
+        def remove_event(self,_id):
+		""" Removes the event of with id '_id' from a Logentries account.
+                Returns True if and only if event with id _id has been removed (whether such an event exists or not). False is returned if the attempt for removal failed.
+                """
+                request = {
+                        'request':'rm_tag',
+                        'user_key': self.get_account_key(),
+                        'tag_id': _id,
+                }
+                
+                _, success = self._conn.request( request )
+                return success
+
+
+
+        def get_tags(self, logkey):
+		""" Retrieves all the tags for a Logentries log.
+                Returns a list of tags associated with log with key 'logkeys' where each tag is a json structure with keys:
+                {
+                'object',
+                'name',
+                'key',
+                'pattern',
+                'tags', (representing a list of event ids associated to the tag)
+                }
+                Returns None if no events could be retrieved.
+                """
+		request = {
+                        'request': 'list_tagfilters',
+                        'user_key': self.get_account_key(),
+                        'log_key': logkey,
+                        'id': 'init_menu'
+		}
+
+		response, success = self._conn.request( request )
+
+		if success and 'list' in response:
+			return response['list']
+                else:
+                        return None
+
+
+        def get_tag(self, host, logname, tagname, _id=None):
+		""" Retrieves the first tag encountered with name 'tagname' from the log with name logname in host. The tag is a json structure with keys:
+                {
+                'object',
+                'name',
+                'key',
+                'pattern',
+                'tags', (representing a list of event ids associated to the tag)
+                }
+                Returns None if no tag could be retrieved with name tagname, for log with name logname in host.
+                """
+                log = self.get_log(host,logname)
+                if log is None:
+                        return None
+                tag_list = self.get_tags(log.get_key())
+                if tag_list is None:
+                        return None
+                for tag in tag_list:
+                        if tag.get_name() == tagname:
+                                return tag
+                return None
+
+        def create_tag(self, host, logname, tagname, eventid, pattern):
+		""" creates a tag with name 'tagname' for the log with name logname in host. The tag is associated event with id 'eventid' unless it is None and to pattern pattern. name  a json structure with keys:
+                {
+                'object',
+                'name',
+                'key',
+                'pattern',
+                'tags', (representing a list of event ids associated to the tag)
+                }
+                Returns None if no tag could be retrieved with name tagname, for log with name logname in host.
+                """
+                pass
+
+        def remove_tag(self, host, logname, _id):
+                pass
+
+
+if __name__ == '__main__':
+        client = Client(account_key='9d1d1f88-eb3a-4522-8196-f45414530ef7')
+        print unicode(client.get_events())
+        print unicode(client.get_event('Rsyslog Restarted'))
+        print unicode(client.get_event('RsyslogRestarted'))
+        event_id = client.create_event('RsyslogRestarted',COLORS[0])
+        print unicode(client.get_account())
+        print unicode(event_id)
+        if event_id is not None:
+                print unicode(client.remove_event(event_id))
+                print unicode(client.remove_event(event_id))
+        host = client.get_host(hostkey=None,name='AutoProvisionning')
+        if host is None:
+                print None
+        else:
+                print unicode(host.to_json())
+                log = client.get_log(logkey=None,hostkey=host.get_key(),logname='Setup')
+                if log is None:
+                        print None
+                else:
+                        print unicode(client.get_tags(log.get_key()))
+                        tag = client.create_tag()
+
+        
+                        
