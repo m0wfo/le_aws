@@ -90,7 +90,8 @@ echo "========"
 
 # install pip and python-dev if not present on the system
 # Debian/Ubuntu
-if [ "$DistroBasedOn" == "debian" ]; then
+#if [ "$DistroBasedOn" == "debian" ]; then
+if [ -n $("command -v apt-get") ]; then
     # TODO: Check if this is really necessary or if this could be avoided by not specifying the virtualenv version
     echo "Updating apt"
     sudo apt-get update
@@ -100,6 +101,16 @@ if [ "$DistroBasedOn" == "debian" ]; then
     # TODO: should we avoid installing python-dev and paramiko for a 'local' setup?
     echo "Installing python-dev"
     sudo apt-get install python-dev
+elif [ -n $("command -v yum") ]; then
+    # TODO: Check if this is really necessary or if this could be avoided by not specifying the virtualenv version
+    echo "Updating yum"
+    sudo yum update
+    # Installing curl
+    echo "Installing wget if not already present."
+    sudo yum install wget
+    # TODO: should we avoid installing python-dev and paramiko for a 'local' setup?
+    echo "Installing python-dev"
+    sudo yum install python2-dev
 elif [ "$OS" == "mac" ]; then
     # Checking the presence of python development tools and headers: http://stackoverflow.com/questions/4848566/check-for-existence-of-python-dev-files-from-bash-script 
     # first, makes sure distutils.sysconfig usable
@@ -114,8 +125,11 @@ elif [ "$OS" == "mac" ]; then
        echo "Python development headers and tools could not be found. Please install them first (e.g. thourgh Xcode)." >&2
        exit 3;
     fi
+elif [ "$OS" == "linux" ]; then
+    echo "Neither apt-get nor yum were found on this system. One or the other is required to complete the installation.";
+    exit 1;
 else
-    echo "Debian based distribution is required. Found $DistroBasedOn.";
+    echo "System $OS is not currently supported."
     exit 1;
 fi
 # Fedora
