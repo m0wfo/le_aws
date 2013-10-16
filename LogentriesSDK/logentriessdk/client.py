@@ -110,7 +110,7 @@ class Client(object):
 		log_data, success = self._conn.request( request )
 
 		if success:
-			if 'log' in log_data and 'key' in log_data:
+			if 'log' in log_data and 'key' in log_data['log']:
 				host.add_log(log_data['log'] )
 				return host, log_data['log']['key']
 			else:
