@@ -167,8 +167,8 @@ env/bin/pip install file://$WORKING_DIR/le_aws/LogentriesSDK/dist/LogentriesSDK-
 env/bin/pip install file://$WORKING_DIR/le_aws/LogentriesProvisioning/dist/LogentriesProvisioning-0.1.0.tar.gz
 
 # Create aws conf file
-echo '{"aws_secret_access_key": "0vNc1N5F84mnkyE6Z5hTRBpp1JIjozhMgszrQ6Mu",' >> aws.json
-echo '"aws_access_key_id": "AKIAINT5AHHNNBWO3IOQ",' >> aws.json
+echo '{"aws_secret_access_key": "AWS_SECRET_ACCESS_KEY",' >> aws.json
+echo '"aws_access_key_id": "AWS_ACCESS_KEY_ID",' >> aws.json
 echo '"usernames": ["ec2-user","root","ubuntu"],' >> aws.json
 echo '"filters": [' >> aws.json
 echo '{"ec2_filter": {"tag:Name":"ubuntu_w_key"},' >> aws.json
@@ -177,7 +177,7 @@ echo '],' >> aws.json
 echo '"ssh_key_paths": ["~/.ssh/"]}' >> aws.json
 
 # Create logentries conf file
-echo '{"account_key": "9d1d1f88-eb3a-4522-8196-f45414530ef7"}' >> logentries.json
+echo '{"account_key": "ACCOUNT_KEY_HERE"}' >> logentries.json
 
 WORKING_DIR=`pwd`
 # Create sync setup command
