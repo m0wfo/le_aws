@@ -31,9 +31,9 @@ client.get_event(eventname,_id)
 client.delete_event(_id)
 client.create_event(eventname,color)
 client.get_tags(logkey)
-client.get_tag(logkey, tagname)
-client.create_tag(logkey, tagname, eventname, pattern)
-client.remove_tag(logkey, _id)
+client.get_tag( host, logname, tagname, _id)
+client.create_tag( host, logname, tagname, eventid, pattern)
+client.remove_tag( tagname, host, logname)
 
 See individual calls for more information
 """
@@ -60,7 +60,6 @@ import logentriessdk.helpers as helpers
 import logentriessdk.models as models
 import inspect
 
-COLORS=["ff0000", "ff9933", "009900", "663333", "66ff66", "333333", "000099", "0099ff"]
 
 class Client(object):
 
@@ -381,7 +380,7 @@ class Client(object):
 
 
         def get_host(self, hostkey, name):
-		""" Retrieves the host with the specified logkey. If logkey is None, then this method returns the first encountered host with name 'name'.
+		""" Retrieves the host with the specified hostkey. If hostkey is None, then this method returns the first encountered host with name 'name'.
                 Returns None if no host with key 'hostkey' or name 'name' could be retrieved.
                 """
                 account = self.get_account()
@@ -552,8 +551,9 @@ class Client(object):
                                 return tag
                 return None
 
-        def create_tag(self, host, logname, tagname, eventid, pattern):
-		""" creates a tag with name 'tagname' for the log with name logname in host. The tag is associated event with id 'eventid' unless it is None and to pattern pattern. name  a json structure with keys:
+
+        def create_tag(self, host, logname, tagname, eventid, pattern=''):
+		""" creates a tag with name 'tagname' for the log with name logname in host. The tag is associated event with id 'eventid' and to pattern pattern. name a json structure with keys:
                 {
                 'object',
                 'name',
@@ -563,10 +563,59 @@ class Client(object):
                 }
                 Returns None if no tag could be retrieved with name tagname, for log with name logname in host.
                 """
-                pass
+		log = client.get_log(host,logname)
+		if log is None:
+			return None
+		request = {
+			'request': 'set_tagfilter',
+			'user_key': self.get_account_key(),
+			'name': tagname,
+			'pattern': pattern,
+			'tags': eventid,
+			'tagfilter_key':'',
+			'log_key': log.get_key()
+			}
+		response, success = self._conn.request( request )
 
-        def remove_tag(self, host, logname, _id):
-                pass
+		if success and 'tag_filter' in response:
+			return response['tag_filter']
+                else:
+                        return None
+
+
+        def remove_tag(self, tagname, host, logname):
+		""" Removes the tag encountered with name 'tagname' from the log with name logname in host. The tag is a json structure with keys:
+                {
+                'object',
+                'name',
+                'key',
+                'pattern',
+                'tags', (representing a list of event ids associated to the tag)
+                }
+                Returns the deleted tag or None if no tag could be retrieved with name tagname, for log with name logname in host.
+                """
+		log = client.get_log(host,logname)
+		if log is None:
+			return None
+		tag_data = get_tag(host, logname, tagname)
+		if tag_data is None or 'tagfilter_key' not in tag_data:
+			return None
+		request = {
+			'request': 'rm_tagfilter',
+			'user_key': self.get_account_key(),
+			'name': tagname,
+			'pattern': pattern,
+			'tags': eventid,
+			'tagfilter_key': tag_data['tagfilter_key'],
+			'log_key': log.get_key()
+			}
+		response, success = self._conn.request( request )
+
+		if success and 'tag_filter' in response:
+			return response['tag_filter']
+                else:
+                        return None
+
 
 
 if __name__ == '__main__':
@@ -574,7 +623,7 @@ if __name__ == '__main__':
         print unicode(client.get_events())
         print unicode(client.get_event('Rsyslog Restarted'))
         print unicode(client.get_event('RsyslogRestarted'))
-        event_id = client.create_event('RsyslogRestarted',COLORS[0])
+        event_id = client.create_event('RsyslogRestarted',constants.COLORS[0])
         print unicode(client.get_account())
         print unicode(event_id)
         if event_id is not None:
