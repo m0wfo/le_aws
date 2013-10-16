@@ -434,7 +434,7 @@ class RemoteInstance(Instance):
                logger.error('Error when creating host for instance %s',self.get_instance_id())
                return
            for log_name in self.get_logs():
-               host = log_client.create_log_token(host=host,log_name=log_name)
+               host,_ = log_client.create_log_token(host=host,log_name=log_name)
            log_conf = ConfigFile.LoggingConfFile(name='logentries_%s.conf'%self.get_instance_id(),host=host)
        
        elif self.get_log_conf() is not None:
@@ -467,7 +467,7 @@ class RemoteInstance(Instance):
            # Finally add new logs if any. TODO: would it be better to do this at the beginning of this function?
            new_logs = self.get_new_logs()
            for new_log in new_logs:
-               matching_host = log_client.create_log_token(host=matching_host,log_name=new_log)
+               matching_host,_ = log_client.create_log_token(host=matching_host,log_name=new_log)
            log_conf.set_host(matching_host)
        return log_conf
 
