@@ -88,37 +88,36 @@ echo "========"
 # https://github.com/coto/server-easy-install/blob/master/lib/core.sh
 #################################################
 
+if command -v python >/dev/null; then
+    if python -c 'import sys; (sys.exit(1) if sys.version_info >= (2,6) else sys.exit(0));' >/dev/null ]; then
+	echo "Version of python is supported"
+    else:
+	echo "Python version >= 2.6 is required."
+	exit 1; 
+    fi;
+else
+    echo "Python could not be found and is required."
+    exit 1;
+fi;
 # install pip and python-dev if not present on the system
 # Debian/Ubuntu
 #if [ "$DistroBasedOn" == "debian" ]; then
-if [ -n $("command -v apt-get") ]; then
-    # TODO: Check if this is really necessary or if this could be avoided by not specifying the virtualenv version
-    echo "Updating apt"
-    sudo apt-get update
+if command -v apt-get >/dev/null; then
     # Installing curl
     echo "Installing wget if not already present."
     sudo apt-get install wget
     # TODO: should we avoid installing python-dev and paramiko for a 'local' setup?
     echo "Installing python-dev"
     sudo apt-get install python-dev
-elif [ -n $("command -v yum") ]; then
-    # TODO: Check if this is really necessary or if this could be avoided by not specifying the virtualenv version
-    echo "Updating yum"
-    sudo yum update
+elif command -v yum >/dev/null; then
     # Installing curl
     echo "Installing wget if not already present."
     sudo yum install wget
     # TODO: should we avoid installing python-dev and paramiko for a 'local' setup?
     echo "Installing python-dev"
-    sudo yum install python2-dev
+    sudo yum install python-devel
 elif [ "$OS" == "mac" ]; then
     # Checking the presence of python development tools and headers: http://stackoverflow.com/questions/4848566/check-for-existence-of-python-dev-files-from-bash-script 
-    # first, makes sure distutils.sysconfig usable
-    #if ! $(python -c "import sys\ntry:\n\timport distutils.sysconfig\nsys.exit(0)\nexcept:\n\tsys.exit(1)" &> /dev/null); then
-    #   echo "Could not verify the presence of python development headers and tools. Please install them onto your system if they are not present (e.g. thourgh Xcode)." >&2
-    #   exit 2;
-    #fi
-
     # get include path for this python version
     INCLUDE_PY=$(python -c "from distutils import sysconfig as s; print s.get_config_vars()['INCLUDEPY']")
     if [ ! -f "${INCLUDE_PY}/Python.h" ]; then
@@ -132,8 +131,6 @@ else
     echo "System $OS is not currently supported."
     exit 1;
 fi
-# Fedora
-#sudo yum install python-pip
 
 # create working directory
 if [ ! -d logentries ]; then
@@ -143,9 +140,9 @@ cd logentries
 
 
 # install virutalenv
-if [ `command -v wget` != "" ]; then
+if command -v wget >/dev/null; then
    wget --no-check-certificate https://pypi.python.org/packages/source/v/virtualenv/virtualenv-1.10.tar.gz
-elif [ `command -v curl` != "" ]; then
+elif command -v curl >/dev/null ; then
    curl -O --insecure https://pypi.python.org/packages/source/v/virtualenv/virtualenv-1.10.tar.gz
 fi
 tar xvfz virtualenv-1.10.tar.gz

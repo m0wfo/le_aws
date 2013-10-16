@@ -1,6 +1,8 @@
 import logging
 import json
 
+from logentriessdk import *
+
 ACCOUNT_KEY = None
 WORKING_DIR = None
 AWS_SECRET_ACCESS_KEY = None
@@ -101,7 +103,23 @@ def set_logentries_logging(logger_name='sync'):
     global _LOGENTRIES_LOGGING_HANDLER
     if get_account_key() is not None and _LOGENTRIES_LOGGING_HANDLER is None:
         logger = logging.getLogger(logger_name)
-        _LOGENTRIES_LOGGING_HANDLER = LogentriesHandler('2de80254-62bb-4ea3-9437-b79f6c20d314')
-        logger.addHandler(_LOGENTRIES_LOGGING_HANDLER)
+        log = get_log_setup()
+        if log is not None and log.get_token() is not None:
+            _LOGENTRIES_LOGGING_HANDLER = LogentriesHandler(log.get_token())
+            logger.addHandler(_LOGENTRIES_LOGGING_HANDLER)
+        else:
+            logger.warning('Could not retrieve a token for the setup log')
 
-
+def get_log_setup():
+    client = Client(account_key=ACCOUNT_KEY)
+    host = client.get_host(hostkey=None,name='AutoProvisioning')
+    if host is None:
+        host = client.create_host(name='AutoProvisioning')
+    if host is None:
+        return None
+    log = client.get_log(logkey=None, hostkey=host.get_key(), logname='Setup')
+    if log is not None:
+        return log
+    host, logkey = client.create_log_token(host=host, log_name='Setup')
+    if host is not None:
+        return host.get_log(logkey)

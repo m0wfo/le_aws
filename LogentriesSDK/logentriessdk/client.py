@@ -111,14 +111,14 @@ class Client(object):
 		log_data, success = self._conn.request( request )
 
 		if success:
-			if 'log' in log_data:
+			if 'log' in log_data and 'key' in log_data:
 				host.add_log(log_data['log'] )
-				return host
+				return host, log_data['log']['key']
 			else:
 				print 'Log information was missing when creating log, log_name=%s, host_name=%s'%(str(log_name),str(host.get_name()))
-				return None
+				return None, None
 		else:
-			return None
+			return None, None
 
 	def create_host( self, name, **optionals ):
 		""" Creates a new host on Logentries. 
@@ -380,7 +380,7 @@ class Client(object):
 			return False
 
 
-        def get_host(self, hostkey, name):
+        def get_host(self, hostkey, name=None):
 		""" Retrieves the host with the specified logkey. If logkey is None, then this method returns the first encountered host with name 'name'.
                 Returns None if no host with key 'hostkey' or name 'name' could be retrieved.
                 """

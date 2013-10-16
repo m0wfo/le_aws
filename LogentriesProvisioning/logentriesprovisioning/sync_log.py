@@ -33,8 +33,11 @@ def create_host(log_client, instance_id):
     return host
 
 def create_logs(log_client, host, log_paths):
+    host_tmp = host
     for log_name in log_paths:
-        host = log_client.create_log_token(host=host,log_name=log_name)
+        host_tmp, logkey = log_client.create_log_token(host=host_tmp,log_name=log_name)
+        if host_tmp is not None and logkey is not None:
+            logger.info('Created Log. logname=%s, instance_id=%s',str(host.get_log(logkey),instance_id))
     return host
 
 def create_host_logs(log_client, instance_id, log_paths):
@@ -152,7 +155,7 @@ def update_instance_conf(log_paths, log_conf):
 
         for new_log in get_new_logs(log_paths, log_conf):
             # Update matching host so that each new log becomes part of it.
-            logentries_host = log_client.create_log_token(host=logentries_host,log_name=new_log)
+            logentries_host,_ = log_client.create_log_token(host=logentries_host,log_name=new_log)
         log_conf.set_host(logentries_host)
     return log_conf
 
