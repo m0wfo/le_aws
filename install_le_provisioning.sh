@@ -171,7 +171,7 @@ echo '{"aws_secret_access_key": "AWS_SECRET_ACCESS_KEY",' >> aws.json
 echo '"aws_access_key_id": "AWS_ACCESS_KEY_ID",' >> aws.json
 echo '"usernames": ["ec2-user","root","ubuntu"],' >> aws.json
 echo '"filters": [' >> aws.json
-echo '{"ec2_filter": {"tag:Name":"ubuntu_w_key"},' >> aws.json
+echo '{"ec2_filter": {},' >> aws.json
 echo '"log_filter": "^/var/log/.*\\.log"}' >> aws.json
 echo '],' >> aws.json
 echo '"ssh_key_paths": ["~/.ssh/"]}' >> aws.json
