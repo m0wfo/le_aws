@@ -15,3 +15,4 @@ logentriessdk/utils.py
 logentriessdk/test/__init__.py
 logentriessdk/test/test_location.py
 logentriessdk/test/test_utils.py
+logentriessdk/test/tests.py
