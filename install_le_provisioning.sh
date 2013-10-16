@@ -103,14 +103,14 @@ fi;
 # Debian/Ubuntu
 #if [ "$DistroBasedOn" == "debian" ]; then
 if command -v apt-get >/dev/null; then
-    # Installing curl
+    # Installing wget
     echo "Installing wget if not already present."
     sudo apt-get install wget
     # TODO: should we avoid installing python-dev and paramiko for a 'local' setup?
     echo "Installing python-dev"
     sudo apt-get install python-dev
 elif command -v yum >/dev/null; then
-    # Installing curl
+    # Installing wget
     echo "Installing wget if not already present."
     sudo yum install wget
     # TODO: should we avoid installing python-dev and paramiko for a 'local' setup?
@@ -148,14 +148,23 @@ fi
 tar xvfz virtualenv-1.10.tar.gz
 python virtualenv-1.10/virtualenv.py env
 
-GIT_REPO_LOCATION=file:///home/benoit/Logentries/git_repo/awswork
+#GIT_REPO_LOCATION=file:///home/benoit/Logentries/git_repo/awswork
 
 # install boto and paramiko in the virtual environment
 env/bin/pip install boto
 env/bin/pip install fabric
 env/bin/pip install logentries
-env/bin/pip install $GIT_REPO_LOCATION/LogentriesSDK/dist/LogentriesSDK-0.1.0.tar.gz
-env/bin/pip install $GIT_REPO_LOCATION/LogentriesProvisioning/dist/LogentriesProvisioning-0.1.0.tar.gz
+
+# Install LogentriesSDK and LogentriesProvisioning
+WORKING_DIR=`pwd`
+git clone git@github.com:bgaudin/le_aws.git
+cd le_aws/LogentriesProvisioning
+$WORKING_DIR/env/bin/python setup.py sdist
+cd ../LogentriesSDK
+$WORKING_DIR/env/bin/python setup.py sdist
+cd ../../
+env/bin/pip install file://$WORKING_DIR/le_aws/LogentriesSDK/dist/LogentriesSDK-0.1.0.tar.gz
+env/bin/pip install file://$WORKING_DIR/le_aws/LogentriesProvisioning/dist/LogentriesProvisioning-0.1.0.tar.gz
 
 # Create aws conf file
 echo '{"aws_secret_access_key": "0vNc1N5F84mnkyE6Z5hTRBpp1JIjozhMgszrQ6Mu",' >> aws.json
