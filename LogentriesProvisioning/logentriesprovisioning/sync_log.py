@@ -37,7 +37,7 @@ def create_logs(log_client, host, log_paths):
     for log_name in log_paths:
         host_tmp, logkey = log_client.create_log_token(host=host_tmp,log_name=log_name)
         if host_tmp is not None and logkey is not None:
-            logger.info('Created Log. logname=%s, instance_id=%s',str(host.get_log(logkey),instance_id))
+            logger.info('Created Log. logname=%s, instance_id=%s',host.get_log(logkey),host.get_name())
     return host
 
 def create_host_logs(log_client, instance_id, log_paths):
