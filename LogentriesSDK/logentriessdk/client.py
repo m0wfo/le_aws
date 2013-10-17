@@ -115,9 +115,9 @@ class Client(object):
 				return host, log_data['log']['key']
 			else:
 				print 'Log information was missing when creating log, log_name=%s, host_name=%s'%(str(log_name),str(host.get_name()))
-				return None, None
+				return host, None
 		else:
-			return None, None
+			return host, None
 
 	def create_host( self, name, **optionals ):
 		""" Creates a new host on Logentries. 
