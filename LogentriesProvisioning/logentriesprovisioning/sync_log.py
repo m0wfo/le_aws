@@ -3,7 +3,8 @@ from paramiko.config import SSHConfig
 
 import logentriessdk.client as LogClient 
 from logentriesprovisioning import ConfigFile
-import logentriesprovisioning.constants
+from logentriesprovisioning import constants
+from logentriesprovisioning import utils
 
 import os
 import sys
@@ -13,59 +14,23 @@ import logging
 # get global logger
 logger = logging.getLogger('sync')
 
-
-def get_new_logs(log_paths,log_conf):
+def get_instance_log_paths(instance_id, log_filter):
     """
-    Returns the list of log paths that are not known by the log configuration associated to this instance
+    Args:
+    instance_id is an instance identifier.
+    ssh_config is the ssh configuration associated to the instance with id 'instance_id'.
+    Returns the list of log paths for the instance with id 'instance_id'.
+    Returns an empty list if no log file paths could be retrieved from the instance.
     """
-    if log_conf is None or log_conf.get_host() is None:
-        return log_paths
-    conf_logs = log_conf.get_host().get_logs()
-    new_logs = [log_path for log_path in log_paths if log_path not in conf_logs]
-    logger.info('New logs detected on %s: %s',log_conf.get_host().get_name(), new_logs)
-    return new_logs
-
-def create_host(log_client, instance_id):
-    host = log_client.create_host(name='AWS_%s'%instance_id,location='AWS')
-    logger.info('Created Host: %s',str(instance_id))
-    if host is None:
-        logger.error('Error when creating host for instance %s',instance_id)
-    return host
-
-def create_logs(log_client, host, log_paths):
-    host_tmp = host
-    for log_name in log_paths:
-        host_tmp, logkey = log_client.create_log_token(host=host_tmp,log_name=log_name)
-        if host_tmp is not None and logkey is not None:
-            logger.info('Created Log. logname=%s, instance_id=%s',host.get_log(logkey),host.get_name())
-    return host
-
-def create_host_logs(log_client, instance_id, log_paths):
-    host = create_host(log_client,instance_id)
-    host = create_logs(log_client,host,log_paths)
-    return ConfigFile.LoggingConfFile(name='logentries_%s.conf'%instance_id,host=host)
-    
-
-def get_ssh_config(host_name):
-    for host_config in env._ssh_config._config:
-        if host_config['host'][0] != '*' and host_config['config']['hostname'] == host_name:
-            return host_config['host'][0],host_config['config']
-    return None,{}
-
-
-def get_instance_log_paths(ssh_config):
-    """
-    """
+    host_name = '%s_%s'%(constants.get_group_name(), instance_id)
     log_paths = []
-    # Retrieve log filter if defined in ssh_config file. Else apply default filter.
-    if 'logfilter' in ssh_config:
-        log_filter = ssh_config['logfilter']
-    else:
-        log_filter = '^/var/log/.*log'
 
     # Retrieve log file paths that match the log filter
-    result = sudo("find / -type f -regex '%s'"%(log_filter))
+    output = sudo("find / -type f -regex '%s'"%(log_filter))
 
+    if not output.succeeded:
+        logger.warning('Could not retrieve log paths. hostname=%s, log_filter=%s, message=%s', host_name, log_filter, output.stdout.replace('\n',' \\ '))
+        return log_paths
     # Clean output
     log_paths.extend([logpath.replace('\r','') for logpath in result.stdout.split('\n')])
     logger.info('Log Paths: %s',log_paths)
@@ -74,37 +39,45 @@ def get_instance_log_paths(ssh_config):
 
 def get_instance_log_conf(instance_id):
     """
-    Returns the remote logging configuration or None if the remote configuration does not exist. 
+    Args:
+    instance_id is an instance identifier.
+    Returns the Logentries-RSyslog configuration file deployed on the instance or None if the configuration does not exist or could not be retrieved. 
     """
     # Retrieve current log config file
     log_conf_file = None
-
-    filename = 'logentries_%s.conf'%instance_id
+    host_name='%s_%s'%(constants.get_group_name(), instance_id)
+    filename = 'logentries_%s.conf'%host_name
     rsyslog_conf_name = '/etc/rsyslog.d/%s'%filename
     local_conf_name = '/tmp/%s'%filename
     
-    # Clean file present
+    # Remove local version of the file if already present as it may be obsolete
     try:
         local('rm %s'%local_conf_name)
     except:
-        logger.warning('Could not remove %s. It may not exist'%(local_conf_name))
+        logger.debug('No version of the file present locally. host_name=%s, remote_filename=%s, local_filename=%s', host_name, rsyslog_conf_name, local_conf_name)
     # Get remote conf file or return None if it cannot be retrieved
     try:
         get(rsyslog_conf_name,local_conf_name)
     except:
-        logger.warning('%s does not exist on instance %s',rsyslog_conf_name,instance_id)
+        logger.debug('No version of the file present remotely. host_name=%s, remote_filename=%s, local_filename=%s', host_name, rsyslog_conf_name, local_conf_name)
         return None
     # Open conf file or return None if it cannot be opened
     try:
         log_conf_file = open(local_conf_name,'r')
     except:
-        logger.warning('Cannot open %s from instance %s',local_conf_name,instance_id)
+        logger.error('Cannot open Logentries-Rsyslog configuration file. host_name=%s, local_filename=%s', host_name, local_conf_name)
         return None
+    logger.debug('Remote Logentries-Rsyslog configuration file successfully retrieved and opened. filename=%s, hostname=%s', rsyslog_conf_name, host_name)
     return log_conf_file
 
 
 def load_conf_file(log_conf_file,instance_id):
     """
+    Args:
+    log_conf_file is a file object
+    instance_id is an instance identifier.
+    Returns a Logentries-RSyslog configuration object representing the content of log_conf_file or None if log_conf_file is None.
+    log_conf_file is closed by this function as a side effect and is therefore no longer accessible.
     """
     log_conf = None
     # conf file or return None if it cannot be opened
@@ -116,75 +89,106 @@ def load_conf_file(log_conf_file,instance_id):
 
 def get_logentries_host(log_client,conf_host):
     """
+    Args:
+    log_client is a client object to manage a Logentries account.
+    conf_host is a Logentries-Rsyslog configuration object.
+    Returns the logentries host corresponding to conf_host or None if no such host is present in the Logentries account.
     """
-    account = log_client.get_account()
     matching_host = None
-    for host in account.get_hosts():
-        if host.get_key() == conf_host.get_key():
-            matching_host = host
-            break
+    account = log_client.get_account()
+    if account is not None:
+        for host in account.get_hosts():
+            if host.get_key() == conf_host.get_key():
+                matching_host = host
+                break
     return matching_host
 
-def update_instance_conf(log_paths, log_conf):
+def update_instance_conf(instance_id, log_paths, log_conf):
     """
+    Args:
+    instance_id is an instance identifier.
+    log_paths is a not None list of log file paths.
+    log_conf is a not None Logentries-RSyslog configuration object.
     Returns the updated log_conf, taking into account new log files present on the instance as well as modifications made to the corresponding logentries host.
+    
     """
-    log_client = LogClient.Client(logentriesprovisioning.constants.ACCOUNT_KEY)
-    instance_id, config = get_ssh_config(env.host)
+    log_client = LogClient.Client(constants.ACCOUNT_KEY)
+    host_name = '%s_%s'%(constants.get_group_name(), instance_id)
 
+    # Creation of a host if no configuration file exists
     if log_conf is None and len(log_paths)>0:
-        log_conf = create_host_logs(log_client,instance_id,log_paths)
-       
+        host = utils.create_host_and_logs(log_client,instance_id,log_paths)
+        log_conf = ConfigFile.LoggingConfFile(name='logentries_%s.conf'%host.get_name(),host=host)
+    # if a configuration file exists for the instance, look for the differences between the log lists
     elif log_conf is not None:
         conf_host = log_conf.get_host()
         if conf_host is None:
-            logger.error('Error. This instance configuration is missing the corresponding model!! instance_id=%s',instance_id)
-            log_conf = create_host_logs(log_client,instance_id,log_paths)
+            logger.error('This instance configuration is missing the corresponding model!! hostname=%s', host_name)
+            host = utils.create_host_and_logs(log_client,instance_id,log_paths)
+            log_conf = ConfigFile.LoggingConfFile(name='logentries_%s.conf'%host.get_name(),host=host)
             return log_conf
 
         if conf_host.get_key() is None:
-            logger.warning('Host %s has an logentries-rsyslog config file but no account key!!',host.get_name())
-            log_conf = create_host_logs(log_client,instance_id,log_paths)
+            logger.warning('Instance has an logentries-rsyslog config file but no account key!! hostname=%s', host.get_name())
+            logger.warning('Instance is re-provisioned. hostname=%s', host.get_name())
+            host = utils.create_host_and_logs(log_client,instance_id,log_paths)
+            log_conf = ConfigFile.LoggingConfFile(name='logentries_%s.conf'%host.get_name(),host=host)
             return log_conf
         
         logentries_host = get_logentries_host(log_client,conf_host)
         # If there is no matching host, then it is assumed that it was deleted from Logentries and that no configuration should be associated to this instance.
         if logentries_host is None:
-            log_conf = create_host_logs(log_client,instance_id,log_paths)
-            return log_conf
+            logger.info('Instance has an logentries-rsyslog config file but no matching host in logentries!! hostname=%s', host.get_name())
+            logger.info('Instance will be deprovisioned hostname=%s', host.get_name())            
+            #host = utils.create_host_and_logs(log_client,instance_id,log_paths)
+            #log_conf = ConfigFile.LoggingConfFile(name='logentries_%s.conf'%host.get_name(),host=host)
+            return None
 
-        for new_log in get_new_logs(log_paths, log_conf):
-            # Update matching host so that each new log becomes part of it.
-            logentries_host,_ = log_client.create_log_token(host=logentries_host,log_name=new_log)
+        for new_log_name in utils.get_new_logs(log_paths, log_conf):
+            logentries_host = log_client.create_log_token(host=logentries_host,log_name=new_log_name)
+            logger.info('Log Created. hostname=%s, removed_log_paths=%s',log_conf.get_host().get_name(), new_logs)
+        for removed_log_name in  utils.get_removed_logs(log_paths, log_conf):
+            logentries_host = log_client.remove_log(host=logentries_host,log_name=new_log_name)
+            logger.info('Log Removed. hostname=%s, removed_log_paths=%s',log_conf.get_host().get_name(), new_logs)
         log_conf.set_host(logentries_host)
     return log_conf
 
 
 def restart_rsyslog(instance_id):
     """
+    Restarts RSyslog service.
+    Args:
+    instance_id is an instance identifier.
+    Returns True if and only if RSyslog was successfully restarted. 
     """
+    host_name = '%s_%s'%(constants.get_group_name(), instance_id)
     try:
         output = sudo('service rsyslog restart')
     except:
         try:
             sudo('/etc/init.d/rsyslog restart')
         except:
-            logger.error('Rsyslog could not be restarted on %s',instance_id)
+            logger.error('Rsyslog could not be restarted. hostname=%s', host_name)
 
     if output.succeeded:
-        logger.info('Rsyslog restarted successfully %s',instance_id)
+        logger.info('RSyslog restarted successfully. hostname=%s', host_name)
     else:
-        logger.error('Error restarting Rsyslog: %s',output.stdout)
-    return
+        logger.error('Error restarting RSyslog. hostname=%s, message=%s', host_name, output.stdout)
+    return output.succeeded
 
 
-def deploy_log_conf(log_conf):
+def deploy_log_conf(instance_id, log_conf):
     """
+    Args:
+    instance_id is an not None instance identifier.
+    log_conf is a Logentries-RSyslog configuration.
+    Deploys Logentries-RSyslog configuration file 'log_conf' and restart RSyslog so that this file is taken into account.
+    Returns True if and only if log_conf was successfully deployed and RSyslog was successfully restarted. 
     """
-
+    host_name = '%s_%s'%(constants.get_group_name(), instance_id)
     if log_conf is None:
-        logger.warning('No RSyslog Configuration File was generated for instance %s.',instance_id)
-        return
+        logger.warning('No RSyslog Configuration file is provided. hostname=%s', host_name)
+        return False
 
     # Get current instance information
     local_conf_name = log_conf.get_name()
@@ -200,60 +204,75 @@ def deploy_log_conf(log_conf):
     try:
         put(local_conf_name,remote_conf_name,use_sudo=True)
     except:
-        logger.error('Transfering %s to remote %s Failed',local_conf_name,remote_conf_name)
-        return
-    return
+        logger.error('File could not be transfer to instance. local_filename=%s, remote_filename=%s, hostname=%s',local_conf_name, remote_conf_name, host_name)
+        return False
+    logger.debug('Configuration file successfully deployed. local_filename=%s, remote_filename=%s, hostanme=%s', local_conf_name, remote_conf_name, host_name)
+    return True
 
 
-
+@parallel
 def sync():
+    """
+    Syncs the logentries account with each instance and logs defined in the ssh config file.
+    """
     # Get current instance information
-    instance_id, ssh_config = get_ssh_config(env.host)
-    if 'log_filter' in ssh_config:
-        print ssh_config['log_filter']
-    else:
-        print 'no log_filter specified'
-    log_paths = get_instance_log_paths(ssh_config)
-    logger.info('LOG_PATHS: %s'%log_paths)
+    instance_id, log_filter = get_log_filter(env.host)
+    host_name = '%s_%s'%(constants.get_group_name(), instance_id)
+
+    log_paths = get_instance_log_paths(instance_id, log_filter)
 
     log_conf_file = get_instance_log_conf(instance_id)
-
+    if log_conf is None:
+        return
     log_conf = load_conf_file(log_conf_file,instance_id)
 
     if log_conf is None:
-        logger.info('No existing logentries rsyslog configuration file was found on instance %s',instance_id)
-
-    log_conf = update_instance_conf(log_paths,log_conf)
-    if log_conf is None:
-        logger.info('No new rsyslog configuration was detected on instance %s',instance_id)
+        logger.info('No existing logentries rsyslog configuration file was found. hostname=%s', host_name)
         return
 
-    deploy_log_conf(log_conf)
-    # Restart Rsyslog
+    log_conf = update_instance_conf(instance_id, log_paths, log_conf)
+    if log_conf is None:
+        logger.info('No new rsyslog configuration was detected. hostname=%s', host_name)
+        return
+
+    deploy_log_conf(instance_id, log_conf)
+    # Restart RSyslog
     restart_rsyslog(instance_id)  
+    return
 
 
 def remove_log_conf(instance_id):
     """
+    Args:
+    instance_id is an instance identifier.
+    Returns True if and only if the Logentries-RSyslog configuration file was successfully removed from the instance.
     """
-    remote_conf_filename = '/etc/rsyslog.d/logentries_%s.conf'%instance_id
+    host_name='%s_%s'%(constants.get_group_name(), instance_id)
+    remote_conf_filename = '/etc/rsyslog.d/logentries_%s.conf'%host_name
+
     try:
         # Remove logentries rsyslog conf file
-        sudo('rm %s'%remote_conf_filename)
+        output = sudo('rm %s'%remote_conf_filename)
     except:
-        logger.error('Could not remove %s',remote_conf_filename)
-        
+        logger.error('Could not remove file. remote_filename=%s, hostname=%s.', remote_conf_filename, host_name)
     if output.succeeded:
-        logger.info('Successfully removed %s',remote_conf_filename)
-    return
+        logger.debug('File successfully removed. remote_filename=%s, hostname=%s.', remote_conf_filename, host_name)
+    else:
+        logger.warning('Could not remove file.  remote_filename=%s, hostname=%s.', remote_conf_filename, host_name)
+    return output.succeeded
+        
 
-    
-def remove(instance_id):
+@parallel
+def deprovision(instance_id):
     """
+    Deprovisions the instance by removing the logentries rsyslog config file from it, restarting rsyslog and removing the corresponding host from the logentries system.
     """
+    host_name = '%s_%s'%(constants.get_group_name(), instance_id)
     log_conf_file = get_instance_log_conf(instance_id)
-
-    log_conf = load_conf_file(log_conf_file,instance_id)
+    if log_conf_file is None:
+        logger.debug('Cannot deprovision instance as it has not been provisioned. hostname=%s', host_name)
+        return False
+    log_conf = load_conf_file(log_conf_file, instance_id)
 
     if log_conf is None:
         logger.info('No existing logentries rsyslog configuration file was found on instance %s',instance_id)
@@ -267,28 +286,26 @@ def remove(instance_id):
     if conf_host.get_key() is None:
         logger.error('Host %s has an logentries-rsyslog config file but no account key!!',host.get_name())
     else:
-        log_client = LogClient.Client(logentriesprovisioning.constants.ACCOUNT_KEY)
+        log_client = LogClient.Client(constants.ACCOUNT_KEY)
         logentries_host = get_logentries_host(log_client,conf_host)
         # If there is no matching host, then it is assumed that it was deleted from Logentries and that no configuration should be associated to this instance.
         if logentries_host is not None:
-            succeeded = log_client.remove_host(logentries_host)
-            if succeeded:
-                logger.warning('Host %s was removed from Logentries.'%host.get_name())
-                remove_log_conf(instance_id)
-                restart_rsyslog(instance_id)
-            else:
-                logger.error('Could not remove Host %s from Logentries.'%host.get_name())
+            if remove_log_conf(instance_id) and restart_rsyslog(instance_id):
+                succeeded = log_client.remove_host(logentries_host)
+                if succeeded:
+                    logger.warning('Host %s was removed from Logentries.'%host.get_name())
+                else:
+                    logger.error('Could not remove Host %s from Logentries.'%host.get_name())
     return
 
 
-
-def main(working_dir=None):
+def main(working_dir=None, *args):
     if working_dir is None:
         return      
 
-    logentriesprovisioning.constants.set_working_dir(working_dir)
-    logentriesprovisioning.constants.set_account_key(None)
-    logentriesprovisioning.constants.set_logentries_logging()
+    constants.set_working_dir(working_dir)
+    constants.set_account_key(None)
+    constants.set_logentries_logging()
 
     if working_dir is None:
         ssh_config_name = 'ssh_config'
@@ -321,7 +338,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print 'You must specify the path to your ssh config file.'
     else:
-        logentriesprovisioning.constants.set_working_dir(sys.argv[1])
-        logentriesprovisioning.constants.set_account_key(None)
-        logentriesprovisioning.constants.set_logentries_logging()
+        constants.set_working_dir(sys.argv[1])
+        constants.set_account_key(None)
+        constants.set_logentries_logging()
         main('%s/ssh_config'%sys.argv[1])

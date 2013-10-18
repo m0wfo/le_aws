@@ -183,8 +183,9 @@ WORKING_DIR=`pwd`
 # Create sync setup command
 echo "#! $WORKING_DIR/env/bin/python" >> sync
 echo 'import os' >> sync
+echo 'import sys' >> sync
 echo 'from logentriesprovisioning import sync_log' >> sync
-echo 'sync_log.main(working_dir=os.getcwd())' >> sync
+echo 'sync_log.main(working_dir=os.getcwd(),sys.argv)' >> sync
 chmod +x sync
 
 # Create aws setup command

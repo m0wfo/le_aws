@@ -8,10 +8,19 @@ WORKING_DIR = None
 AWS_SECRET_ACCESS_KEY = None
 AWS_ACCESS_KEY_ID = None
 
+GROUP_NAME = 'AWS'
+
 _LOGENTRIES_LOGGING_HANDLER = None
 
 from logentries import LogentriesHandler
 logger = logging.getLogger('sync')
+
+def set_group_name(name):
+    global GROUP_NAME
+    GROUP_NAME = name
+
+def get_group_name():
+    return GROUP_NAME
 
 def set_working_dir(working_dir):
     global WORKING_DIR
