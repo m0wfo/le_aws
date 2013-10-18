@@ -32,7 +32,7 @@ def get_instance_log_paths(instance_id, log_filter):
         logger.warning('Could not retrieve log paths. hostname=%s, log_filter=%s, message=%s', host_name, log_filter, output.stdout.replace('\n',' \\ '))
         return log_paths
     # Clean output
-    log_paths.extend([logpath.replace('\r','') for logpath in result.stdout.split('\n')])
+    log_paths.extend([logpath.replace('\r','') for logpath in output.stdout.split('\n')])
     logger.info('Log Paths: %s',log_paths)
     return log_paths
 
