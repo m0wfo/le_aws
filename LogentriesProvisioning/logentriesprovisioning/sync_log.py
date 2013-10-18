@@ -129,7 +129,7 @@ def update_instance_conf(instance_id, log_paths, log_conf):
             return log_conf
 
         if conf_host.get_key() is None:
-            logger.warning('Instance has an logentries-rsyslog config file but no account key!! hostname=%s', host.get_name())
+            logger.warning('Instance has a logentries-rsyslog config file but no account key!! hostname=%s', host.get_name())
             logger.warning('Instance is re-provisioned. hostname=%s', host.get_name())
             host = utils.create_host_and_logs(log_client,instance_id,log_paths)
             log_conf = ConfigFile.LoggingConfFile(name='logentries_%s.conf'%host.get_name(),host=host)
@@ -162,6 +162,7 @@ def restart_rsyslog(instance_id):
     Returns True if and only if RSyslog was successfully restarted. 
     """
     host_name = '%s_%s'%(constants.get_group_name(), instance_id)
+    output = None
     try:
         output = sudo('service rsyslog restart')
     except:
@@ -170,6 +171,9 @@ def restart_rsyslog(instance_id):
         except:
             logger.error('Rsyslog could not be restarted. hostname=%s', host_name)
 
+    if output is None:
+        return False
+    
     if output.succeeded:
         logger.info('RSyslog restarted successfully. hostname=%s', host_name)
     else:
