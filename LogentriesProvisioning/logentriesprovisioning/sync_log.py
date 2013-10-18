@@ -138,8 +138,8 @@ def update_instance_conf(instance_id, log_paths, log_conf):
         logentries_host = get_logentries_host(log_client,conf_host)
         # If there is no matching host, then it is assumed that it was deleted from Logentries and that no configuration should be associated to this instance.
         if logentries_host is None:
-            logger.info('Instance has an logentries-rsyslog config file but no matching host in logentries!! hostname=%s', host.get_name())
-            logger.info('Instance will be deprovisioned hostname=%s', host.get_name())            
+            logger.info('Instance has an logentries-rsyslog config file but no matching host in logentries!! hostname=%s', host_name)
+            logger.info('Instance will be deprovisioned hostname=%s', host_name)            
             #host = utils.create_host_and_logs(log_client,instance_id,log_paths)
             #log_conf = ConfigFile.LoggingConfFile(name='logentries_%s.conf'%host.get_name(),host=host)
             return None

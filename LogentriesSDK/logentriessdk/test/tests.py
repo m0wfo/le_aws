@@ -39,7 +39,7 @@ class TestModel(unittest.TestCase):
         self.assertEqual(event_data['name'],'test_event')
         self.assertIsNone(client.get_event('mhbsjhdfb'))
 
-        client.remove_event(event_id))
+        client.remove_event(event_id)
         self.assertIsNone(client.get_event('test_event'))
 
         tag = client.create_tag( host, log.get_name(), 'test_tag', event_id, 'test_pattern')
