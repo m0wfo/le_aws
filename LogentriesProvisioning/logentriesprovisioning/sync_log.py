@@ -26,7 +26,12 @@ def get_instance_log_paths(instance_id, log_filter):
     log_paths = []
 
     # Retrieve log file paths that match the log filter
-    output = sudo("find / -type f -regex '%s'"%(log_filter))
+    command = "find / -type f -regex '%s'"%(log_filter)
+    try:
+        output = sudo(command, warn_only=True)
+    except:
+        logger.warning('Could not retrieve log paths. hostname=%s, log_filter=%s, command=%s', host_name, log_filter, command)
+        return []
 
     if not output.succeeded:
         logger.warning('Could not retrieve log paths. hostname=%s, log_filter=%s, message=%s', host_name, log_filter, output.stdout.replace('\n',' \\ '))
@@ -163,13 +168,16 @@ def restart_rsyslog(instance_id):
     """
     host_name = '%s_%s'%(constants.get_group_name(), instance_id)
     output = None
+    command = 'service rsyslog restart'
     try:
-        output = sudo('service rsyslog restart')
+        output = sudo(command, warn_only=True)
+        logger.warning('Could not restart syslog. hostname=%s, command=%s', host_name, command)
     except:
+        command = '/etc/init.d/rsyslog restart'
         try:
-            sudo('/etc/init.d/rsyslog restart')
+            sudo(command, warn_only=True)
         except:
-            logger.error('Rsyslog could not be restarted. hostname=%s', host_name)
+            logger.error('Rsyslog could not be restarted. hostname=%s, command=%s', host_name, command)
 
     if output is None:
         return False
@@ -256,7 +264,7 @@ def remove_log_conf(instance_id):
 
     try:
         # Remove logentries rsyslog conf file
-        output = sudo('rm %s'%remote_conf_filename)
+        output = sudo('rm %s'%remote_conf_filename, warn_only=True)
     except:
         logger.error('Could not remove file. remote_filename=%s, hostname=%s.', remote_conf_filename, host_name)
     if output.succeeded:
