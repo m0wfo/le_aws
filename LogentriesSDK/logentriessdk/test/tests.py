@@ -43,5 +43,5 @@ class TestModel(unittest.TestCase):
         self.assertIsNone(client.get_event('test_event'))
 
         tag = client.create_tag( host, log.get_name(), 'test_tag', event_id, 'test_pattern')
-        for _tag in client.get_tags(log.get_key())):
+        for _tag in client.get_tags(log.get_key()):
             self.assertEqual(tag['tagfilter_key'],_tag['tagfilter_key'])
