@@ -216,7 +216,7 @@ def sync():
     Syncs the logentries account with each instance and logs defined in the ssh config file.
     """
     # Get current instance information
-    instance_id, log_filter = get_log_filter(env.host)
+    instance_id, log_filter = utils.get_log_filter(env.host)
     host_name = '%s_%s'%(constants.get_group_name(), instance_id)
 
     log_paths = get_instance_log_paths(instance_id, log_filter)
