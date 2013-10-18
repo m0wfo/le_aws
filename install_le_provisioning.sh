@@ -159,6 +159,7 @@ env/bin/pip install logentries
 WORKING_DIR=`pwd`
 git clone git@github.com:bgaudin/le_aws.git
 cd le_aws/LogentriesProvisioning
+git checkout devel
 $WORKING_DIR/env/bin/python setup.py sdist
 cd ../LogentriesSDK
 $WORKING_DIR/env/bin/python setup.py sdist
