@@ -263,11 +263,13 @@ def remove_log_conf(instance_id):
         
 
 @parallel
-def deprovision(instance_id):
+def deprovision():
     """
     Deprovisions the instance by removing the logentries rsyslog config file from it, restarting rsyslog and removing the corresponding host from the logentries system.
     """
+    instance_id, log_filter = utils.get_log_filter(env.host)
     host_name = '%s_%s'%(constants.get_group_name(), instance_id)
+
     log_conf_file = get_instance_log_conf(instance_id)
     if log_conf_file is None:
         logger.debug('Cannot deprovision instance as it has not been provisioned. hostname=%s', host_name)
@@ -330,9 +332,10 @@ def main(working_dir=None, *args):
         if host_config['host'][0]!='*':
             list_hosts.extend(host_config['host'])
 
-    if len(args)>0:
-        if args[0] in ['deprovision', '-d']:
-            execute(deprovision,hosts=list_hosts)
+    if len(args)>1:
+        print args
+#        if args[1] in ['deprovision', '-d']:
+        execute(deprovision,hosts=list_hosts)
     else:
         execute(sync,hosts=list_hosts)
 
