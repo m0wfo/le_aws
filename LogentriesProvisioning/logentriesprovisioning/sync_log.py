@@ -224,12 +224,11 @@ def sync():
     log_conf_file = get_instance_log_conf(instance_id)
     if log_conf_file is None:
         logger.debug('No existing logentries rsyslog configuration file was found. hostname=%s', host_name)
-        return
+
     log_conf = load_conf_file(log_conf_file,instance_id)
 
     if log_conf is None:
         logger.info('Logentries rsyslog configuration file could not be read. hostname=%s', host_name)
-        return
 
     log_conf = update_instance_conf(instance_id, log_paths, log_conf)
     if log_conf is None:
