@@ -15,11 +15,4 @@ logentriessdk/utils.py
 logentriessdk/test/__init__.py
 logentriessdk/test/test_location.py
 logentriessdk/test/test_utils.py
-<<<<<<< HEAD
 logentriessdk/test/tests.py
-=======
-<<<<<<< HEAD
-=======
-logentriessdk/test/tests.py
->>>>>>> origin/devel
->>>>>>> origin/devel

@@ -300,13 +300,13 @@ def deprovision(instance_id):
 
 
 def main(working_dir=None, *args):
-    if working_dir is None:
-        return      
-
+    """
+    Main function for the module. Calls other functions according to the parameters provided.
+    """
     constants.set_working_dir(working_dir)
     constants.set_account_key(None)
     constants.set_logentries_logging()
-
+      
     if working_dir is None:
         ssh_config_name = 'ssh_config'
     else:
@@ -330,7 +330,11 @@ def main(working_dir=None, *args):
         if host_config['host'][0]!='*':
             list_hosts.extend(host_config['host'])
 
-    execute(sync,hosts=list_hosts)
+    if len(args)>0:
+        if args[0] in ['deprovision', '-d']:
+            execute(deprovision,hosts=list_hosts)
+    else:
+        execute(sync,hosts=list_hosts)
 
 
 
