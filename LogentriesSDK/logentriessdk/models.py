@@ -196,6 +196,12 @@ class Host(object):
 		"""
 		self._location = location
 
+	def get_location(self):
+		"""
+		Returns this host location.
+		"""
+		return self._location
+
 	def add_log(self,log_data):
 		"""
 		Args: log_data is a dictionary containing a log attributes.
